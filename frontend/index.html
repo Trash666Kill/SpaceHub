@@ -342,7 +342,15 @@
   .list-info { flex: 1; min-width: 0; }
   .list-name { font-size: 15px; font-weight: 600; color: var(--brand); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .list-sub { font-size: 13px; color: var(--text-soft); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .list-actions { display: flex; gap: 8px; }
+  .list-actions { display: flex; gap: 8px; align-items: center; }
+  .list-actions .status-badge {
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 8px;
+    font-size: 12px;
+    padding: 0 12px;
+  }
   .action-btn {
     height: 34px; padding: 0 12px; border-radius: 8px; font-size: 13px;
     font-weight: 600; cursor: pointer; border: none; font-family: 'DM Sans', sans-serif;
