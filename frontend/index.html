@@ -53,7 +53,7 @@
     display: flex;
     flex-direction: column;
   }
-  @media (min-width: 430px) {
+  @media (min-width: 430px) and (max-width: 767px) {
     #app { border-radius: 32px; height: min(900px, 96dvh); box-shadow: 0 30px 80px rgba(0,0,0,0.5); }
     body { padding: 20px; }
   }
@@ -382,6 +382,247 @@
   .profile-item-icon svg { width: 20px; height: 20px; }
   .profile-item-text { font-size: 15px; font-weight: 500; color: var(--text-main); }
   .profile-item-chevron { margin-left: auto; color: var(--text-muted); font-size: 18px; }
+
+  /* ══════════════════════════════════════════════════════════════ */
+  /* DESKTOP RESPONSIVE LAYOUT (≥ 768px)                          */
+  /* ══════════════════════════════════════════════════════════════ */
+  @media (min-width: 768px) {
+    body {
+      display: block;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    #app {
+      max-width: none;
+      height: 100dvh;
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    /* ── Layout grid: sidebar + content ── */
+    #screen-main.screen.active {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      grid-template-rows: auto 1fr;
+      height: 100%;
+    }
+
+    .app-header {
+      grid-column: 1 / -1;
+      grid-row: 1;
+      padding: 20px 40px 16px;
+    }
+
+    /* ── Sidebar Navigation ── */
+    .bottom-nav {
+      position: static;
+      grid-column: 1;
+      grid-row: 2;
+      flex-direction: column;
+      align-items: stretch;
+      border-top: none;
+      border-right: 1px solid var(--border);
+      background: var(--white);
+      padding: 24px 16px;
+      box-shadow: none;
+      gap: 4px;
+      overflow-y: auto;
+    }
+
+    .nav-btn {
+      flex: none;
+      flex-direction: row;
+      justify-content: flex-start;
+      padding: 14px 20px;
+      gap: 14px;
+      border-radius: var(--radius-sm);
+      transition: background .2s, color .2s;
+    }
+
+    .nav-btn:hover {
+      background: var(--cream);
+    }
+
+    .nav-btn.active {
+      background: var(--cream2);
+    }
+
+    .nav-btn svg {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    .nav-btn span {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    /* ── Content area ── */
+    .scroll-body {
+      grid-column: 2;
+      grid-row: 2;
+      padding-bottom: 24px;
+    }
+
+    /* ── Room cards: multi-column grid ── */
+    .room-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+      padding: 28px 36px 0;
+      max-width: 1400px;
+    }
+
+    .room-card {
+      transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+    }
+
+    .room-card:not(.maintenance):hover {
+      transform: translateY(-4px);
+      border-color: var(--teal-light);
+      box-shadow: 0 12px 36px rgba(26, 26, 46, 0.12);
+    }
+
+    .room-card:not(.maintenance):active {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(26, 26, 46, 0.10);
+    }
+
+    /* ── Bookings: multi-column grid ── */
+    .bookings-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+      gap: 16px;
+      padding: 28px 36px;
+      max-width: 1400px;
+    }
+
+    .booking-item {
+      transition: box-shadow .2s;
+    }
+
+    .booking-item:hover {
+      box-shadow: 0 6px 24px rgba(26, 26, 46, 0.10);
+    }
+
+    /* ── Admin panel ── */
+    .admin-tabs {
+      padding: 0 36px;
+    }
+
+    .admin-tab {
+      flex: none;
+      padding: 14px 28px;
+      transition: color .2s, border-color .2s;
+    }
+
+    .admin-tab:hover:not(.active) {
+      color: var(--text-main);
+    }
+
+    #admin-settings > div {
+      max-width: 680px;
+    }
+
+    .list-item {
+      transition: box-shadow .2s;
+    }
+
+    .list-item:hover {
+      box-shadow: 0 6px 24px rgba(26, 26, 46, 0.10);
+    }
+
+    /* ── Auth screens ── */
+    .auth-bg {
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+    }
+
+    .auth-logo {
+      margin-bottom: 32px;
+    }
+
+    .auth-card {
+      max-width: 440px;
+      width: 100%;
+    }
+
+    .auth-title,
+    .auth-sub {
+      max-width: 440px;
+    }
+
+    /* ── Modals: centered dialog ── */
+    .modal-overlay {
+      position: fixed;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal {
+      border-radius: 24px;
+      max-width: 520px;
+      width: 90%;
+      max-height: 85vh;
+    }
+
+    .modal-handle {
+      display: none;
+    }
+
+    /* ── Profile ── */
+    .profile-header {
+      padding: 40px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .profile-name {
+      margin-top: 0;
+    }
+
+    .profile-email {
+      margin-top: 2px;
+    }
+
+    .profile-menu {
+      max-width: 600px;
+      padding: 28px 40px;
+    }
+
+    .profile-item {
+      transition: background .2s;
+    }
+
+    .profile-item:hover {
+      background: var(--cream);
+    }
+
+    /* ── Toast ── */
+    #toast {
+      bottom: 40px;
+    }
+
+    /* ── Empty states span full grid ── */
+    .empty-state {
+      grid-column: 1 / -1;
+    }
+  }
+
+  /* ── Extra wide screens (≥ 1200px) ── */
+  @media (min-width: 1200px) {
+    .room-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .bookings-list {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
 </style>
 </head>
 <body>
@@ -956,17 +1197,30 @@ function isSlotBooked(slot, type) {
   });
 }
 
+function isSlotPast(slot) {
+  if (!bDate) return false;
+  const now = new Date();
+  const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  if (bDate !== todayStr) return false;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const [h, m] = slot.split(':').map(Number);
+  return (h * 60 + m) <= nowMinutes;
+}
+
 function renderTimeSlots() {
   const startEl = document.getElementById('start-times');
   const endEl = document.getElementById('end-times');
   startEl.innerHTML = SLOTS.slice(0,-1).map(s => {
     const booked = isSlotBooked(s, 'start');
-    return `<button class="time-slot ${bStart===s?'selected':''} ${booked?'booked':''}" ${booked?'disabled':''} onclick="selectStart('${s}')">${s}</button>`;
+    const past = isSlotPast(s);
+    const unavailable = booked || past;
+    return `<button class="time-slot ${bStart===s?'selected':''} ${unavailable?'booked':''}" ${unavailable?'disabled':''} onclick="selectStart('${s}')">${s}</button>`;
   }).join('');
   endEl.innerHTML = SLOTS.slice(1).map(s => {
     const booked = isSlotBooked(s, 'end');
-    const disabled = !bStart || s <= bStart || booked;
-    return `<button class="time-slot ${bEnd===s?'selected':''} ${booked?'booked':''}" ${disabled?'disabled':''} onclick="selectEnd('${s}')">${s}</button>`;
+    const past = isSlotPast(s);
+    const disabled = !bStart || s <= bStart || booked || past;
+    return `<button class="time-slot ${bEnd===s?'selected':''} ${booked||past?'booked':''}" ${disabled?'disabled':''} onclick="selectEnd('${s}')">${s}</button>`;
   }).join('');
   document.getElementById('btn-next-confirm').disabled = !(bStart && bEnd);
 }

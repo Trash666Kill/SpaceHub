@@ -211,6 +211,15 @@ def create_booking():
     if not r: return jsonify({'error': 'Sala não encontrada'}), 404
     if r.status == 'maintenance': return jsonify({'error': 'Sala em manutenção'}), 400
     if d['start_time'] >= d['end_time']: return jsonify({'error': 'Horário inválido'}), 400
+    # Reject past bookings
+    now = datetime.now()
+    booking_date = datetime.strptime(d['date'], '%Y-%m-%d').date()
+    if booking_date < now.date():
+        return jsonify({'error': 'Não é possível reservar em datas passadas'}), 400
+    if booking_date == now.date():
+        booking_start = datetime.strptime(d['start_time'], '%H:%M').time()
+        if booking_start <= now.time():
+            return jsonify({'error': 'Não é possível reservar horários que já passaram'}), 400
     if check_conflict(d['room_id'], d['date'], d['start_time'], d['end_time']):
         return jsonify({'error': 'Horário já reservado para esta sala'}), 409
     b = Booking(user_id=u.id, room_id=d['room_id'], date=d['date'],
