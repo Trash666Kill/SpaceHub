@@ -58,6 +58,7 @@ class Booking(db.Model):
     date = db.Column(db.String(10), nullable=False, index=True)
     start_time = db.Column(db.String(5), nullable=False)
     end_time = db.Column(db.String(5), nullable=False)
+    description = db.Column(db.String(200), nullable=True, default='')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user = db.relationship('User', backref='bookings')
     room = db.relationship('Room', backref='bookings')
@@ -66,6 +67,7 @@ class Booking(db.Model):
         return {'id': self.id, 'user_id': self.user_id, 'user_name': self.user.name if self.user else None,
                 'room_id': self.room_id, 'room_name': self.room.name if self.room else None,
                 'date': self.date, 'start_time': self.start_time, 'end_time': self.end_time,
+                'description': self.description or '',
                 'created_at': self.created_at.isoformat()}
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -223,7 +225,8 @@ def create_booking():
     if check_conflict(d['room_id'], d['date'], d['start_time'], d['end_time']):
         return jsonify({'error': 'Horário já reservado para esta sala'}), 409
     b = Booking(user_id=u.id, room_id=d['room_id'], date=d['date'],
-                start_time=d['start_time'], end_time=d['end_time'])
+                start_time=d['start_time'], end_time=d['end_time'],
+                description=d.get('description', '').strip()[:200])
     db.session.add(b); db.session.commit()
     return jsonify(b.to_dict()), 201
 

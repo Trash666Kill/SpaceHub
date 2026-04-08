@@ -315,6 +315,7 @@
   .booking-room { font-size: 16px; font-weight: 600; color: var(--brand); }
   .booking-time { font-size: 14px; color: var(--text-soft); margin-top: 3px; }
   .booking-user { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .booking-desc { font-size: 13px; color: var(--text-soft); margin-top: 4px; font-style: italic; opacity: 0.85; }
 
   /* ADMIN TABS */
   .admin-tabs { display: flex; background: var(--white); border-bottom: 1px solid var(--border); }
@@ -879,6 +880,10 @@
             <div class="confirm-row"><span class="confirm-label">Início</span><span class="confirm-value" id="conf-start">—</span></div>
             <div class="confirm-row"><span class="confirm-label">Término</span><span class="confirm-value" id="conf-end">—</span></div>
           </div>
+          <div class="form-group" style="margin-bottom:16px">
+            <label style="font-size:13px;font-weight:600;color:var(--text-main);margin-bottom:6px">Descrição (opcional)</label>
+            <input id="booking-description" class="input light" type="text" placeholder="Ex: Reunião quinzenal T.I" maxlength="200" style="font-size:14px">
+          </div>
           <div style="display:flex;gap:12px">
             <button class="btn btn-outline" style="flex:1" onclick="goToStepTime()">← Voltar</button>
             <button class="btn btn-primary" style="flex:2" id="btn-confirm-booking" onclick="submitBooking()">Reservar Agora</button>
@@ -1157,6 +1162,7 @@ async function loadBookings() {
           <div class="booking-info">
             <div class="booking-room">${b.room_name}</div>
             <div class="booking-time">${b.start_time} – ${b.end_time}</div>
+            ${b.description ? `<div class="booking-desc">${b.description}</div>` : ''}
             ${user.role === 'admin' ? `<div class="booking-user">${b.user_name}</div>` : ''}
           </div>
           <button class="btn btn-danger btn-sm" style="width:auto;padding:0 12px;flex-shrink:0" onclick="cancelBooking(${b.id}, this)">Cancelar</button>
@@ -1262,6 +1268,8 @@ function selectEnd(s) { bEnd = s; renderTimeSlots(); }
 // ── Booking Modal Steps ────────────────────────────────────────────────────
 async function openBookingModal(room) {
   bRoom = room; bDate = null; bStart = null; bEnd = null;
+  const descInput = document.getElementById('booking-description');
+  if (descInput) descInput.value = '';
   const now = new Date();
   calYear = now.getFullYear(); calMonth = now.getMonth();
   document.getElementById('bmodal-title').textContent = 'Reservar — ' + room.name;
@@ -1309,7 +1317,8 @@ async function submitBooking() {
   const btn = document.getElementById('btn-confirm-booking');
   btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>';
   try {
-    await api('POST', '/bookings', { room_id: bRoom.id, date: bDate, start_time: bStart, end_time: bEnd });
+    const description = (document.getElementById('booking-description').value || '').trim();
+    await api('POST', '/bookings', { room_id: bRoom.id, date: bDate, start_time: bStart, end_time: bEnd, description });
     closeBookingModal();
     toast('Reserva realizada com sucesso!', 'success');
     loadRooms();
