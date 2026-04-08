@@ -4,7 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
-import uuid, json, os
+import uuid, json, os, re
 
 app = Flask(__name__)
 CORS(app, origins="*")
@@ -25,13 +25,14 @@ class User(db.Model):
     name = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
+    department = db.Column(db.String(100), nullable=True, default='')
     role = db.Column(db.String(10), default='user')
     status = db.Column(db.String(12), default='pending')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {'id': self.id, 'name': self.name, 'email': self.email,
-                'role': self.role, 'status': self.status, 'created_at': self.created_at.isoformat()}
+                'department': self.department or '', 'role': self.role, 'status': self.status, 'created_at': self.created_at.isoformat()}
 
 class Setting(db.Model):
     __tablename__ = 'settings'
@@ -102,9 +103,14 @@ def serve_index():
 @app.post('/api/auth/register')
 def register():
     d = request.get_json()
-    if not d or not all(k in d for k in ('name','email','password')):
-        return jsonify({'error': 'name, email and password required'}), 400
+    if not d or not all(k in d for k in ('name','email','password','department')):
+        return jsonify({'error': 'Nome, e-mail, senha e setor são obrigatórios'}), 400
+    if not d['department'].strip():
+        return jsonify({'error': 'O campo Setor é obrigatório'}), 400
     email = d['email'].lower().strip()
+    safe_email = re.compile(r'^[A-Za-z0-9.@_\-+]+$')
+    if not safe_email.match(email):
+        return jsonify({'error': 'E-mail não pode conter acentos ou caracteres especiais'}), 400
     # Domain restriction
     setting = Setting.query.get('allowed_domains')
     if setting and setting.value:
@@ -120,6 +126,7 @@ def register():
     if User.query.filter_by(email=email).first():
         return jsonify({'error': 'Email already registered'}), 409
     u = User(name=d['name'].strip(), email=email,
+             department=d['department'].strip(),
              password_hash=generate_password_hash(d['password']))
     db.session.add(u); db.session.commit()
     return jsonify({'message': 'Cadastro recebido. Aguarde ativação por um administrador.', 'user': u.to_dict()}), 201

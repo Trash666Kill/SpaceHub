@@ -298,6 +298,7 @@
   }
   .time-slot.selected { border-color: var(--teal-dim); background: #EFF8FF; color: var(--teal-dim); }
   .time-slot.booked { opacity: 0.35; cursor: not-allowed; background: var(--cream2); text-decoration: line-through; }
+  .time-slot:disabled:not(.booked) { opacity: 0.5; cursor: not-allowed; }
 
   /* BOOKINGS LIST */
   .bookings-list { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
@@ -710,8 +711,16 @@
           <div id="reg-domain-hint" style="font-size:12px;color:rgba(255,255,255,0.45);margin-top:6px;"></div>
         </div>
         <div class="field">
+          <label>Setor</label>
+          <input id="reg-department" class="input" type="text" placeholder="Ex: T.I, Financeiro, RH">
+        </div>
+        <div class="field">
           <label>Senha</label>
           <input id="reg-pass" class="input" type="password" placeholder="Mínimo 8 caracteres">
+        </div>
+        <div class="field">
+          <label>Confirmar Senha</label>
+          <input id="reg-pass-confirm" class="input" type="password" placeholder="Repita a senha">
         </div>
         <button class="btn btn-primary" id="register-btn" style="margin-top:8px">Criar Conta</button>
         <div style="text-align:center;margin-top:20px">
@@ -1058,11 +1067,18 @@ document.getElementById('login-btn').onclick = async () => {
   btn.disabled = false; btn.textContent = 'Entrar';
 };
 
+// Only basic ASCII allowed in email (no accents or special chars)
+const SAFE_EMAIL = /^[A-Za-z0-9.@_\-+]+$/;
+
 document.getElementById('register-btn').onclick = async () => {
   const name = document.getElementById('reg-name').value.trim();
   const email = document.getElementById('reg-email').value.trim();
+  const department = document.getElementById('reg-department').value.trim();
   const pass = document.getElementById('reg-pass').value;
-  if (!name || !email || !pass) { toast('Preencha todos os campos', 'error'); return; }
+  const passConfirm = document.getElementById('reg-pass-confirm').value;
+  if (!name || !email || !department || !pass || !passConfirm) { toast('Preencha todos os campos', 'error'); return; }
+  if (!SAFE_EMAIL.test(email)) { toast('E-mail não pode conter acentos ou caracteres especiais', 'error'); return; }
+  if (pass !== passConfirm) { toast('As senhas não coincidem', 'error'); return; }
   if (pass.length < 6) { toast('Senha muito curta', 'error'); return; }
   // Client-side domain check
   if (allowedDomains.length > 0) {
@@ -1074,7 +1090,7 @@ document.getElementById('register-btn').onclick = async () => {
   const btn = document.getElementById('register-btn');
   btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>';
   try {
-    await api('POST', '/auth/register', { name, email, password: pass });
+    await api('POST', '/auth/register', { name, email, department, password: pass });
     toast('Cadastro enviado! Aguarde aprovação.', 'success');
     showScreen('login');
   } catch(e) { toast(e.message, 'error'); }
@@ -1227,8 +1243,8 @@ function isSlotBooked(slot, type) {
   return existingBookings.some(b => {
     if (type === 'start') return slot >= b.start_time && slot < b.end_time;
     if (type === 'end') {
-      if (!bStart) return false;
-      return slot <= bStart || (bStart < b.start_time && slot > b.start_time) || (bStart >= b.start_time && bStart < b.end_time);
+      if (!bStart || slot <= bStart) return false;
+      return (bStart < b.end_time) && (slot > b.start_time);
     }
     return false;
   });
@@ -1256,8 +1272,10 @@ function renderTimeSlots() {
   endEl.innerHTML = SLOTS.slice(1).map(s => {
     const booked = isSlotBooked(s, 'end');
     const past = isSlotPast(s);
-    const disabled = !bStart || s <= bStart || booked || past;
-    return `<button class="time-slot ${bEnd===s?'selected':''} ${booked||past?'booked':''}" ${disabled?'disabled':''} onclick="selectEnd('${s}')">${s}</button>`;
+    const invalidDuration = bStart && s <= bStart;
+    const visuallyBooked = booked || past || invalidDuration;
+    const disabled = !bStart || visuallyBooked;
+    return `<button class="time-slot ${bEnd===s?'selected':''} ${visuallyBooked?'booked':''}" ${disabled?'disabled':''} onclick="selectEnd('${s}')">${s}</button>`;
   }).join('');
   document.getElementById('btn-next-confirm').disabled = !(bStart && bEnd);
 }
