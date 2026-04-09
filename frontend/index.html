@@ -747,7 +747,7 @@
       <div class="auth-card">
         <div class="field">
           <label>E-mail</label>
-          <input id="login-email" class="input" type="email" placeholder="seu@empresa.com" autocomplete="email">
+          <input id="login-email" class="input" type="email" placeholder="seu@empresa.com" autocomplete="off">
         </div>
         <div class="field">
           <label>Senha</label>
@@ -757,6 +757,38 @@
         <div style="text-align:center;margin-top:20px">
           <button class="link-btn" onclick="showScreen('register')">Não tem conta? Cadastre-se</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SETUP (first run) ── -->
+  <div id="screen-setup" class="screen">
+    <div class="auth-bg">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">
+          <svg viewBox="0 0 24 24" fill="#fff"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+        </div>
+      </div>
+      <div class="auth-title">Configuração inicial</div>
+      <div class="auth-sub">Crie a conta de administrador para começar a usar o SpaceHub.</div>
+      <div class="auth-card">
+        <div class="field">
+          <label>Nome completo</label>
+          <input id="setup-name" class="input" type="text" placeholder="Seu nome" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>E-mail</label>
+          <input id="setup-email" class="input" type="email" placeholder="admin@empresa.com" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>Senha</label>
+          <input id="setup-pass" class="input" type="password" placeholder="Mínimo 8 caracteres">
+        </div>
+        <div class="field">
+          <label>Confirmar Senha</label>
+          <input id="setup-pass-confirm" class="input" type="password" placeholder="Repita a senha">
+        </div>
+        <button class="btn btn-primary" id="setup-btn" style="margin-top:8px">Criar Administrador</button>
       </div>
     </div>
   </div>
@@ -775,11 +807,11 @@
       <div class="auth-card">
         <div class="field">
           <label>Nome completo</label>
-          <input id="reg-name" class="input" type="text" placeholder="Seu nome" autocomplete="name">
+          <input id="reg-name" class="input" type="text" placeholder="Seu nome" autocomplete="off">
         </div>
         <div class="field">
           <label>E-mail corporativo</label>
-          <input id="reg-email" class="input" type="email" placeholder="seu@empresa.com" autocomplete="email">
+          <input id="reg-email" class="input" type="email" placeholder="seu@empresa.com" autocomplete="off">
           <div id="reg-domain-hint" style="font-size:12px;color:rgba(255,255,255,0.45);margin-top:6px;"></div>
         </div>
         <div class="field">
@@ -1286,7 +1318,7 @@ function initApp() {
   document.querySelectorAll('.admin-only').forEach(el => {
     el.style.display = user.role === 'admin' ? '' : 'none';
   });
-  loadRooms();
+  showTab('rooms');
 }
 
 // ── Rooms ──────────────────────────────────────────────────────────────────
@@ -2038,9 +2070,60 @@ async function testMailSettings() {
   btn.disabled = false; btn.textContent = '📧 Enviar E-mail de Teste';
 }
 
+// ── Setup (first run) ──────────────────────────────────────────────────────
+document.getElementById('setup-btn').onclick = async () => {
+  const name = document.getElementById('setup-name').value.trim();
+  const email = document.getElementById('setup-email').value.trim();
+  const pass = document.getElementById('setup-pass').value;
+  const passConfirm = document.getElementById('setup-pass-confirm').value;
+  if (!name || !email || !pass || !passConfirm) { toast('Preencha todos os campos', 'error'); return; }
+  if (!SAFE_EMAIL.test(email)) { toast('E-mail não pode conter acentos ou caracteres especiais', 'error'); return; }
+  if (pass !== passConfirm) { toast('As senhas não coincidem', 'error'); return; }
+  if (pass.length < 8) { toast('A senha deve ter no mínimo 8 caracteres', 'error'); return; }
+  const btn = document.getElementById('setup-btn');
+  btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>';
+  try {
+    const data = await api('POST', '/auth/setup', { name, email, password: pass });
+    token = data.token; user = data.user;
+    localStorage.setItem('mrtoken', token);
+    localStorage.setItem('mruser', JSON.stringify(user));
+    toast('Administrador criado! Bem-vindo ao SpaceHub.', 'success');
+    initApp();
+  } catch(e) { toast(e.message, 'error'); }
+  btn.disabled = false; btn.textContent = 'Criar Administrador';
+};
+
 // ── Boot ───────────────────────────────────────────────────────────────────
-fetchSettings();
-if (token && user) initApp();
+function clearAllFields() {
+  const ids = [
+    'login-email','login-pass',
+    'setup-name','setup-email','setup-pass','setup-pass-confirm',
+    'reg-name','reg-email','reg-department','reg-pass','reg-pass-confirm',
+    'mail-server','mail-port','mail-username','mail-password','mail-from-name',
+    'settings-title','settings-subtitle',
+    'tpl-reg-subject','tpl-reg-body','tpl-approved-subject','tpl-approved-body','tpl-blocked-subject','tpl-blocked-body',
+    'r-name','r-capacity','r-resources',
+    'new-password','booking-description',
+  ];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+}
+async function boot() {
+  clearAllFields();
+  await fetchSettings();
+  // Check if first-run setup is needed
+  try {
+    const status = await api('GET', '/auth/setup-status');
+    if (status.needs_setup) {
+      showScreen('setup');
+      return;
+    }
+  } catch(e) { /* fallback to normal login */ }
+  if (token && user) initApp();
+}
+boot();
 </script>
 </body>
 </html>

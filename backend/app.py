@@ -514,15 +514,45 @@ def admin_delete_user(uid):
         return jsonify({'error': str(e)}), 500
     return jsonify({'message': 'Usuário removido'})
 
+# ── Setup (first-run) ────────────────────────────────────────────────────────
+
+@app.get('/api/auth/setup-status')
+def setup_status():
+    """Returns whether the app still needs its first admin to be created."""
+    needs_setup = not User.query.filter_by(role='admin').first()
+    return jsonify({'needs_setup': needs_setup})
+
+@app.post('/api/auth/setup')
+def setup():
+    """Creates the first administrator. Only works when no admin exists yet."""
+    if User.query.filter_by(role='admin').first():
+        return jsonify({'error': 'Configuração inicial já foi realizada'}), 403
+    d = request.get_json() or {}
+    name = str(d.get('name', '')).strip()
+    email = str(d.get('email', '')).lower().strip()
+    password = str(d.get('password', ''))
+    if not name or not email or not password:
+        return jsonify({'error': 'Nome, e-mail e senha são obrigatórios'}), 400
+    safe_email = re.compile(r'^[A-Za-z0-9.@_\-+]+$')
+    if not safe_email.match(email):
+        return jsonify({'error': 'E-mail não pode conter acentos ou caracteres especiais'}), 400
+    if len(password) < 8:
+        return jsonify({'error': 'A senha deve ter no mínimo 8 caracteres'}), 400
+    if User.query.filter_by(email=email).first():
+        return jsonify({'error': 'E-mail já cadastrado'}), 409
+    admin = User(name=name, email=email,
+                 password_hash=generate_password_hash(password),
+                 role='admin', status='approved', department='')
+    db.session.add(admin)
+    db.session.commit()
+    token = create_access_token(identity=admin.id)
+    return jsonify({'message': 'Administrador criado com sucesso', 'token': token, 'user': admin.to_dict()}), 201
+
 # ── Init ──────────────────────────────────────────────────────────────────────
 
 def seed():
-    if not User.query.count():
-        db.session.add(User(name='Administrador', email='admin@empresa.com',
-                            password_hash=generate_password_hash('admin123'),
-                            role='admin', status='approved'))
     if not db.session.get(Setting, 'allowed_domains'):
-        db.session.add(Setting(key='allowed_domains', value=json.dumps(['sugisawa.com.br'])))
+        db.session.add(Setting(key='allowed_domains', value=json.dumps([])))
     for key in ('mail_server', 'mail_port', 'mail_username', 'mail_password', 'mail_from_name'):
         if not db.session.get(Setting, key):
             defaults = {'mail_server': 'smtp.gmail.com', 'mail_port': '587', 'mail_from_name': 'SpaceHub'}
