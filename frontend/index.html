@@ -967,12 +967,14 @@
             <span style="font-size:12px;background:var(--cream2);color:var(--teal-dim);padding:3px 10px;border-radius:20px;font-family:'Space Mono',monospace">{{setor}}</span>
             <span style="font-size:12px;background:var(--cream2);color:var(--teal-dim);padding:3px 10px;border-radius:20px;font-family:'Space Mono',monospace">{{data}}</span>
           </div>
+          <p style="font-size:12px;color:var(--text-muted);margin-bottom:18px">⏰ Variáveis exclusivas do lembrete: <code style="background:var(--cream2);padding:2px 6px;border-radius:4px;font-family:'Space Mono',monospace;color:var(--teal-dim)">{{sala}}</code> <code style="background:var(--cream2);padding:2px 6px;border-radius:4px;font-family:'Space Mono',monospace;color:var(--teal-dim)">{{data_reserva}}</code> <code style="background:var(--cream2);padding:2px 6px;border-radius:4px;font-family:'Space Mono',monospace;color:var(--teal-dim)">{{inicio}}</code> <code style="background:var(--cream2);padding:2px 6px;border-radius:4px;font-family:'Space Mono',monospace;color:var(--teal-dim)">{{fim}}</code> <code style="background:var(--cream2);padding:2px 6px;border-radius:4px;font-family:'Space Mono',monospace;color:var(--teal-dim)">{{descricao}}</code></p>
 
           <!-- Template tabs -->
           <div style="display:flex;gap:4px;margin-bottom:16px;background:var(--cream2);padding:4px;border-radius:10px">
             <button class="tpl-tab active" onclick="switchTplTab('reg')" id="tpl-tab-reg" style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:var(--white);color:var(--text-main);font-family:'DM Sans',sans-serif;transition:all .2s">📝 Novo Cadastro</button>
             <button class="tpl-tab" onclick="switchTplTab('approved')" id="tpl-tab-approved" style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-soft);font-family:'DM Sans',sans-serif;transition:all .2s">✅ Aprovação</button>
             <button class="tpl-tab" onclick="switchTplTab('blocked')" id="tpl-tab-blocked" style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-soft);font-family:'DM Sans',sans-serif;transition:all .2s">🚫 Bloqueio</button>
+            <button class="tpl-tab" onclick="switchTplTab('reminder')" id="tpl-tab-reminder" style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-soft);font-family:'DM Sans',sans-serif;transition:all .2s">⏰ Lembrete</button>
           </div>
 
           <div id="tpl-panel-reg">
@@ -1003,6 +1005,16 @@
             <div class="form-group" style="margin:0">
               <label>Corpo (HTML)</label>
               <textarea id="tpl-blocked-body" class="input light" rows="8" style="height:auto;padding:12px;resize:vertical;line-height:1.5;font-family:'Space Mono',monospace;font-size:12px"></textarea>
+            </div>
+          </div>
+          <div id="tpl-panel-reminder" style="display:none">
+            <div class="form-group" style="margin-bottom:12px">
+              <label>Assunto</label>
+              <input id="tpl-reminder-subject" class="input light" type="text" placeholder="Assunto do e-mail">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Corpo (HTML)</label>
+              <textarea id="tpl-reminder-body" class="input light" rows="8" style="height:auto;padding:12px;resize:vertical;line-height:1.5;font-family:'Space Mono',monospace;font-size:12px"></textarea>
             </div>
           </div>
 
@@ -1980,7 +1992,7 @@ let currentTplTab = 'reg';
 
 function switchTplTab(name) {
   currentTplTab = name;
-  ['reg','approved','blocked'].forEach(t => {
+  ['reg','approved','blocked','reminder'].forEach(t => {
     const panel = document.getElementById('tpl-panel-' + t);
     const tab   = document.getElementById('tpl-tab-' + t);
     const active = t === name;
@@ -1999,6 +2011,8 @@ async function loadEmailTemplates() {
     document.getElementById('tpl-approved-body').value    = data.email_approved_body    || '';
     document.getElementById('tpl-blocked-subject').value  = data.email_blocked_subject  || '';
     document.getElementById('tpl-blocked-body').value     = data.email_blocked_body     || '';
+    document.getElementById('tpl-reminder-subject').value = data.email_reminder_subject || '';
+    document.getElementById('tpl-reminder-body').value    = data.email_reminder_body    || '';
   } catch(e) {}
 }
 
@@ -2013,6 +2027,8 @@ async function saveEmailTemplates() {
       email_approved_body:    document.getElementById('tpl-approved-body').value,
       email_blocked_subject:  document.getElementById('tpl-blocked-subject').value,
       email_blocked_body:     document.getElementById('tpl-blocked-body').value,
+      email_reminder_subject: document.getElementById('tpl-reminder-subject').value,
+      email_reminder_body:    document.getElementById('tpl-reminder-body').value,
     });
     toast('Templates salvos!', 'success');
   } catch(e) { toast(e.message, 'error'); }
@@ -2101,7 +2117,7 @@ function clearAllFields() {
     'reg-name','reg-email','reg-department','reg-pass','reg-pass-confirm',
     'mail-server','mail-port','mail-username','mail-password','mail-from-name',
     'settings-title','settings-subtitle',
-    'tpl-reg-subject','tpl-reg-body','tpl-approved-subject','tpl-approved-body','tpl-blocked-subject','tpl-blocked-body',
+    'tpl-reg-subject','tpl-reg-body','tpl-approved-subject','tpl-approved-body','tpl-blocked-subject','tpl-blocked-body','tpl-reminder-subject','tpl-reminder-body',
     'r-name','r-capacity','r-resources',
     'new-password','booking-description',
   ];

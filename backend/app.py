@@ -12,6 +12,12 @@ try:
 except ImportError:
     MAIL_AVAILABLE = False
 
+try:
+    from apscheduler.schedulers.background import BackgroundScheduler
+    APSCHEDULER_AVAILABLE = True
+except ImportError:
+    APSCHEDULER_AVAILABLE = False
+
 app = Flask(__name__)
 CORS(app, origins="*")
 
@@ -75,6 +81,7 @@ class Booking(db.Model):
     start_time = db.Column(db.String(5), nullable=False)
     end_time = db.Column(db.String(5), nullable=False)
     description = db.Column(db.String(200), nullable=True, default='')
+    reminder_sent = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user = db.relationship('User', backref='bookings')
     room = db.relationship('Room', backref='bookings')
@@ -123,6 +130,22 @@ EMAIL_DEFAULTS = {
         '<p>Olá, <strong>{{nome}}</strong>.</p>'
         '<p>Sua conta no <strong>SpaceHub</strong> foi bloqueada por um administrador.</p>'
         '<p>Entre em contato com o administrador do sistema para mais informações.</p>'
+        '<hr style="border:none;border-top:1px solid #eee;margin:24px 0">'
+        '<p style="font-size:12px;color:#999">SpaceHub — Sistema de Reserva de Salas</p>'
+        '</div>'
+    ),
+    'email_reminder_subject': '⏰ Lembrete: sua reserva começa em 15 minutos — SpaceHub',
+    'email_reminder_body': (
+        '<div style="font-family:sans-serif;max-width:480px;margin:0 auto;color:#222">'
+        '<h2 style="color:#1a73e8">⏰ Sua reserva começa em breve!</h2>'
+        '<p>Olá, <strong>{{nome}}</strong>!</p>'
+        '<p>Sua reserva começa em <strong>15 minutos</strong>:</p>'
+        '<table style="width:100%;border-collapse:collapse;margin:16px 0">'
+        '<tr><td style="padding:8px;font-weight:600;color:#555;width:120px">Sala</td><td style="padding:8px">{{sala}}</td></tr>'
+        '<tr style="background:#f5f5f5"><td style="padding:8px;font-weight:600;color:#555">Data</td><td style="padding:8px">{{data_reserva}}</td></tr>'
+        '<tr><td style="padding:8px;font-weight:600;color:#555">Horário</td><td style="padding:8px">{{inicio}} – {{fim}}</td></tr>'
+        '<tr style="background:#f5f5f5"><td style="padding:8px;font-weight:600;color:#555">Descrição</td><td style="padding:8px">{{descricao}}</td></tr>'
+        '</table>'
         '<hr style="border:none;border-top:1px solid #eee;margin:24px 0">'
         '<p style="font-size:12px;color:#999">SpaceHub — Sistema de Reserva de Salas</p>'
         '</div>'
@@ -201,6 +224,23 @@ def _render_template(template, user):
         template = template.replace(k, v)
     return template
 
+def _render_booking_template(template, user, booking):
+    """Replace {{variavel}} placeholders with user + booking data."""
+    replacements = {
+        '{{nome}}':        user.name,
+        '{{email}}':       user.email,
+        '{{setor}}':       user.department or '—',
+        '{{data}}':        user.created_at.strftime('%d/%m/%Y %H:%M'),
+        '{{sala}}':        booking.room.name if booking.room else '—',
+        '{{data_reserva}}': datetime.strptime(booking.date, '%Y-%m-%d').strftime('%d/%m/%Y'),
+        '{{inicio}}':      booking.start_time,
+        '{{fim}}':         booking.end_time,
+        '{{descricao}}':   booking.description or '—',
+    }
+    for k, v in replacements.items():
+        template = template.replace(k, v)
+    return template
+
 def _email_new_registration(new_user):
     """Notify all admins about a new pending registration."""
     admins = User.query.filter_by(role='admin', status='approved').all()
@@ -228,6 +268,58 @@ def _email_account_blocked(user):
     subject = _render_template(subj_tpl, user)
     body    = _render_template(body_tpl, user)
     send_email_async(subject, [user.email], body)
+
+# ── Reminder Scheduler ────────────────────────────────────────────────────────
+
+def _send_booking_reminders():
+    """Check for bookings starting in ~15 minutes and send reminder emails."""
+    with app.app_context():
+        now = datetime.now()
+        target = now + timedelta(minutes=15)
+        target_date = target.strftime('%Y-%m-%d')
+        target_time = target.strftime('%H:%M')
+
+        bookings = Booking.query.filter_by(
+            date=target_date,
+            start_time=target_time,
+            reminder_sent=False
+        ).all()
+
+        for b in bookings:
+            if not b.user:
+                continue
+            # Mark as sent BEFORE dispatching to prevent duplicates on concurrent runs
+            b.reminder_sent = True
+            db.session.commit()
+            subj_tpl = (db.session.get(Setting, 'email_reminder_subject') or
+                        Setting(value=EMAIL_DEFAULTS['email_reminder_subject'])).value
+            body_tpl = (db.session.get(Setting, 'email_reminder_body') or
+                        Setting(value=EMAIL_DEFAULTS['email_reminder_body'])).value
+            subject = _render_booking_template(subj_tpl, b.user, b)
+            body    = _render_booking_template(body_tpl, b.user, b)
+            send_email_async(subject, [b.user.email], body)
+            app.logger.info(f'Reminder sent to {b.user.email} for booking #{b.id} at {target_time}')
+
+def _start_reminder_scheduler():
+    """Start APScheduler to fire _send_booking_reminders every 60 seconds."""
+    if not APSCHEDULER_AVAILABLE:
+        app.logger.warning(
+            'APScheduler not installed — booking reminders disabled. '
+            'Run: pip install apscheduler==3.10.4'
+        )
+        return
+
+    scheduler = BackgroundScheduler(timezone='America/Sao_Paulo')
+    scheduler.add_job(
+        _send_booking_reminders,
+        trigger='interval',
+        seconds=60,
+        max_instances=1,        # never runs in parallel
+        misfire_grace_time=30,  # still fires if delayed up to 30s
+        id='booking_reminders',
+    )
+    scheduler.start()
+    app.logger.info('Booking reminder scheduler started (interval: 60s).')
 
 # ── Frontend ──────────────────────────────────────────────────────────────────
 
@@ -307,7 +399,7 @@ def create_room():
 @admin_required
 def update_room(rid):
     r = Room.query.get_or_404(rid); d = request.get_json() or {}
-    for k in ('name','status'): 
+    for k in ('name','status'):
         if k in d: setattr(r, k, d[k])
     if 'capacity' in d: r.capacity = int(d['capacity'])
     if 'resources' in d: r.resources = json.dumps(d['resources'])
@@ -479,9 +571,9 @@ def admin_update_user(uid):
     u = User.query.get_or_404(uid)
     d = request.get_json() or {}
     old_status = u.status
-    if 'status' in d: 
+    if 'status' in d:
         u.status = str(d['status']).strip()
-    if 'role' in d: 
+    if 'role' in d:
         new_role = str(d['role']).strip().lower()
         if new_role in ['admin', 'user']:
             u.role = new_role
@@ -565,6 +657,7 @@ def seed():
 with app.app_context():
     db.create_all()
     seed()
+    _start_reminder_scheduler()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True, port=5000)
