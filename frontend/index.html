@@ -895,6 +895,89 @@
           <div id="allowed-domains-inputs" style="display:flex;flex-direction:column;gap:10px"></div>
           <button class="btn btn-outline btn-sm" style="width:auto;padding:0 16px;margin-top:12px" id="add-domain-btn" onclick="addDomainInput()">+ Adicionar domínio</button>
           <button class="btn btn-secondary" onclick="saveAllowedDomains()" style="background: var(--white); border: 1.5px solid var(--border); box-shadow: var(--shadow); margin-top:16px; transition: border 0.3s;" onmouseover="this.style.borderColor='var(--teal-dim)'" onmouseout="this.style.borderColor='var(--border)'">Salvar Domínios</button>
+
+          <hr style="border:none;border-top:1px solid var(--border);margin:28px 0 20px">
+          <p class="section-title">Configurações de E-mail (SMTP)</p>
+          <p style="font-size:13px;color:var(--text-soft);margin-bottom:16px">Configure o servidor SMTP para envio de notificações automáticas de cadastro e aprovação.</p>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="form-group" style="margin:0">
+              <label>Servidor SMTP</label>
+              <input id="mail-server" class="input light" type="text" placeholder="smtp.gmail.com">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Porta SMTP</label>
+              <input id="mail-port" class="input light" type="number" placeholder="587">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Usuário (e-mail remetente)</label>
+              <input id="mail-username" class="input light" type="email" placeholder="noreply@empresa.com">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Senha / App Password</label>
+              <input id="mail-password" class="input light" type="password" placeholder="••••••••••••">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Nome do Remetente</label>
+              <input id="mail-from-name" class="input light" type="text" placeholder="SpaceHub">
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
+            <button class="btn btn-secondary btn-sm" onclick="saveMailSettings()" style="background: var(--white); border: 1.5px solid var(--border); box-shadow: var(--shadow); flex:1; transition: border 0.3s;" onmouseover="this.style.borderColor='var(--teal-dim)'" onmouseout="this.style.borderColor='var(--border)'" id="save-mail-btn">Salvar Configurações de E-mail</button>
+            <button class="btn btn-outline btn-sm" onclick="testMailSettings()" style="flex:1" id="test-mail-btn">📧 Enviar E-mail de Teste</button>
+          </div>
+
+          <hr style="border:none;border-top:1px solid var(--border);margin:28px 0 20px">
+          <p class="section-title">Templates de E-mail</p>
+          <p style="font-size:13px;color:var(--text-soft);margin-bottom:4px">Personalize o conteúdo dos e-mails automáticos. Use as variáveis abaixo no assunto ou no corpo:</p>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px">
+            <span style="font-size:12px;background:var(--cream2);color:var(--teal-dim);padding:3px 10px;border-radius:20px;font-family:'Space Mono',monospace">{{nome}}</span>
+            <span style="font-size:12px;background:var(--cream2);color:var(--teal-dim);padding:3px 10px;border-radius:20px;font-family:'Space Mono',monospace">{{email}}</span>
+            <span style="font-size:12px;background:var(--cream2);color:var(--teal-dim);padding:3px 10px;border-radius:20px;font-family:'Space Mono',monospace">{{setor}}</span>
+            <span style="font-size:12px;background:var(--cream2);color:var(--teal-dim);padding:3px 10px;border-radius:20px;font-family:'Space Mono',monospace">{{data}}</span>
+          </div>
+
+          <!-- Template tabs -->
+          <div style="display:flex;gap:4px;margin-bottom:16px;background:var(--cream2);padding:4px;border-radius:10px">
+            <button class="tpl-tab active" onclick="switchTplTab('reg')" id="tpl-tab-reg" style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:var(--white);color:var(--text-main);font-family:'DM Sans',sans-serif;transition:all .2s">📝 Novo Cadastro</button>
+            <button class="tpl-tab" onclick="switchTplTab('approved')" id="tpl-tab-approved" style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-soft);font-family:'DM Sans',sans-serif;transition:all .2s">✅ Aprovação</button>
+            <button class="tpl-tab" onclick="switchTplTab('blocked')" id="tpl-tab-blocked" style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-soft);font-family:'DM Sans',sans-serif;transition:all .2s">🚫 Bloqueio</button>
+          </div>
+
+          <div id="tpl-panel-reg">
+            <div class="form-group" style="margin-bottom:12px">
+              <label>Assunto</label>
+              <input id="tpl-reg-subject" class="input light" type="text" placeholder="Assunto do e-mail">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Corpo (HTML)</label>
+              <textarea id="tpl-reg-body" class="input light" rows="8" style="height:auto;padding:12px;resize:vertical;line-height:1.5;font-family:'Space Mono',monospace;font-size:12px"></textarea>
+            </div>
+          </div>
+          <div id="tpl-panel-approved" style="display:none">
+            <div class="form-group" style="margin-bottom:12px">
+              <label>Assunto</label>
+              <input id="tpl-approved-subject" class="input light" type="text" placeholder="Assunto do e-mail">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Corpo (HTML)</label>
+              <textarea id="tpl-approved-body" class="input light" rows="8" style="height:auto;padding:12px;resize:vertical;line-height:1.5;font-family:'Space Mono',monospace;font-size:12px"></textarea>
+            </div>
+          </div>
+          <div id="tpl-panel-blocked" style="display:none">
+            <div class="form-group" style="margin-bottom:12px">
+              <label>Assunto</label>
+              <input id="tpl-blocked-subject" class="input light" type="text" placeholder="Assunto do e-mail">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Corpo (HTML)</label>
+              <textarea id="tpl-blocked-body" class="input light" rows="8" style="height:auto;padding:12px;resize:vertical;line-height:1.5;font-family:'Space Mono',monospace;font-size:12px"></textarea>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
+            <button class="btn btn-secondary btn-sm" onclick="saveEmailTemplates()" style="background: var(--white); border: 1.5px solid var(--border); box-shadow: var(--shadow); flex:2; transition: border 0.3s;" onmouseover="this.style.borderColor='var(--teal-dim)'" onmouseout="this.style.borderColor='var(--border)'" id="save-tpl-btn">Salvar Templates</button>
+            <button class="btn btn-outline btn-sm" onclick="resetEmailTemplates()" style="flex:1" id="reset-tpl-btn">↺ Restaurar Padrões</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1435,15 +1518,15 @@ async function submitBooking() {
 
 // ── Admin ──────────────────────────────────────────────────────────────────
 function switchAdminTab(name) {
-  const tabs = ['users','rooms-mgmt','calendar','settings'];
-  document.querySelectorAll('.admin-tab').forEach((t,i) => {
-    if (tabs[i]) t.classList.toggle('active', tabs[i] === name);
-  });
+  const tabs   = ['users','rooms-mgmt','calendar','settings'];
   const panels = ['admin-users','admin-rooms-mgmt','admin-calendar','admin-settings'];
-  document.querySelectorAll('.admin-panel').forEach((p,i) => {
-    if (panels[i]) p.classList.toggle('active', panels[i] === 'admin-' + name);
+  tabs.forEach((t, i) => {
+    document.querySelectorAll('.admin-tab')[i]?.classList.toggle('active', t === name);
+    const panel = document.getElementById(panels[i]);
+    if (panel) panel.classList.toggle('active', panels[i] === 'admin-' + name);
   });
   if (name === 'calendar') loadAdminCalendar();
+  if (name === 'settings') { fetchSettings(); loadEmailTemplates(); }
 }
 
 async function loadAdminUsers() {
@@ -1706,6 +1789,11 @@ async function fetchSettings() {
       renderDomainInputs();
       updateRegDomainHint();
     }
+
+    // Load mail settings if admin fields are present in DOM
+    if (document.getElementById('mail-server')) {
+      loadMailSettings(data);
+    }
   } catch(e) {}
 }
 
@@ -1852,6 +1940,102 @@ async function saveAllowedDomains() {
     updateRegDomainHint();
     toast('Domínios salvos!', 'success');
   } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Email Templates ─────────────────────────────────────────────────────────
+
+let currentTplTab = 'reg';
+
+function switchTplTab(name) {
+  currentTplTab = name;
+  ['reg','approved','blocked'].forEach(t => {
+    const panel = document.getElementById('tpl-panel-' + t);
+    const tab   = document.getElementById('tpl-tab-' + t);
+    const active = t === name;
+    panel.style.display = active ? '' : 'none';
+    tab.style.background = active ? 'var(--white)' : 'transparent';
+    tab.style.color = active ? 'var(--text-main)' : 'var(--text-soft)';
+  });
+}
+
+async function loadEmailTemplates() {
+  try {
+    const data = await api('GET', '/admin/email-templates');
+    document.getElementById('tpl-reg-subject').value      = data.email_reg_subject      || '';
+    document.getElementById('tpl-reg-body').value         = data.email_reg_body         || '';
+    document.getElementById('tpl-approved-subject').value = data.email_approved_subject || '';
+    document.getElementById('tpl-approved-body').value    = data.email_approved_body    || '';
+    document.getElementById('tpl-blocked-subject').value  = data.email_blocked_subject  || '';
+    document.getElementById('tpl-blocked-body').value     = data.email_blocked_body     || '';
+  } catch(e) {}
+}
+
+async function saveEmailTemplates() {
+  const btn = document.getElementById('save-tpl-btn');
+  btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>';
+  try {
+    await api('POST', '/admin/email-templates', {
+      email_reg_subject:      document.getElementById('tpl-reg-subject').value,
+      email_reg_body:         document.getElementById('tpl-reg-body').value,
+      email_approved_subject: document.getElementById('tpl-approved-subject').value,
+      email_approved_body:    document.getElementById('tpl-approved-body').value,
+      email_blocked_subject:  document.getElementById('tpl-blocked-subject').value,
+      email_blocked_body:     document.getElementById('tpl-blocked-body').value,
+    });
+    toast('Templates salvos!', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+  btn.disabled = false; btn.textContent = 'Salvar Templates';
+}
+
+async function resetEmailTemplates() {
+  showConfirm('Restaurar todos os templates para o padrão original?', async () => {
+    const btn = document.getElementById('reset-tpl-btn');
+    btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>';
+    try {
+      await api('POST', '/admin/email-templates/reset', {});
+      await loadEmailTemplates();
+      toast('Templates restaurados!', 'success');
+    } catch(e) { toast(e.message, 'error'); }
+    btn.disabled = false; btn.textContent = '↺ Restaurar Padrões';
+  });
+}
+
+// ── Mail Settings ───────────────────────────────────────────────────────────
+
+async function loadMailSettings(data) {
+  // data is already fetched from /settings
+  if (data.mail_server) document.getElementById('mail-server').value = data.mail_server;
+  if (data.mail_port) document.getElementById('mail-port').value = data.mail_port;
+  if (data.mail_username) document.getElementById('mail-username').value = data.mail_username;
+  if (data.mail_password) document.getElementById('mail-password').value = data.mail_password;
+  if (data.mail_from_name) document.getElementById('mail-from-name').value = data.mail_from_name;
+}
+
+async function saveMailSettings() {
+  const btn = document.getElementById('save-mail-btn');
+  const payload = {
+    mail_server: document.getElementById('mail-server').value.trim(),
+    mail_port: document.getElementById('mail-port').value.trim(),
+    mail_username: document.getElementById('mail-username').value.trim(),
+    mail_password: document.getElementById('mail-password').value,
+    mail_from_name: document.getElementById('mail-from-name').value.trim(),
+  };
+  btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>';
+  try {
+    await api('POST', '/admin/settings', payload);
+    toast('Configurações de e-mail salvas!', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+  btn.disabled = false; btn.textContent = 'Salvar Configurações de E-mail';
+}
+
+async function testMailSettings() {
+  const btn = document.getElementById('test-mail-btn');
+  btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>';
+  try {
+    const res = await api('POST', '/admin/settings/test-email');
+    toast(res.message, 'success');
+  } catch(e) { toast(e.message || 'Erro ao enviar e-mail de teste', 'error'); }
+  btn.disabled = false; btn.textContent = '📧 Enviar E-mail de Teste';
 }
 
 // ── Boot ───────────────────────────────────────────────────────────────────
