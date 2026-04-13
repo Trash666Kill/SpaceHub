@@ -212,6 +212,10 @@
   textarea.input { height: auto; min-height: 80px; padding: 12px 14px; resize: vertical; font-family: inherit; }
   select.input { appearance: none; -webkit-appearance: none; cursor: pointer; }
 
+  /* FORM GROUP */
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 500; color: var(--text-soft); margin-bottom: 6px; }
+
   /* BUTTONS */
   .btn {
     width: 100%; height: 50px; border: none; border-radius: var(--radius-sm);
@@ -309,6 +313,37 @@
   .booking-user { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
   .booking-desc { font-size: 12px; color: var(--text-soft); margin-top: 4px; font-style: italic; }
 
+  /* CALENDAR */
+  .calendar { background: var(--white); border-radius: 20px; padding: 20px; margin-bottom: 20px; }
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .cal-title { font-size: 16px; font-weight: 600; color: var(--text-main); }
+  .cal-nav-btn { background: none; border: none; cursor: pointer; padding: 8px; border-radius: 8px; color: var(--text-soft); font-size: 18px; }
+  .cal-nav-btn:active { background: var(--cream); }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-day-name { text-align: center; font-size: 12px; font-weight: 500; color: var(--text-muted); padding: 4px 0; }
+  .cal-day {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; font-size: 14px; font-weight: 400;
+    cursor: pointer; color: var(--text-main); border: none; background: none;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .cal-day:disabled { color: var(--text-muted); cursor: default; }
+  .cal-day.today { background: var(--cream2); font-weight: 600; }
+  .cal-day.selected { background: var(--teal-dim); color: #000; font-weight: 600; }
+  .cal-day:not(:disabled):not(.selected):active { background: var(--cream); }
+
+  /* TIMES */
+  .times-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .time-slot {
+    height: 44px; border: 1.5px solid var(--border);
+    border-radius: 10px; background: var(--white);
+    font-size: 14px; font-weight: 500; color: var(--text-main);
+    cursor: pointer; font-family: 'DM Sans', sans-serif;
+  }
+  .time-slot.selected { border-color: var(--teal-dim); background: var(--cream2); color: var(--teal-dim); }
+  .time-slot.booked { opacity: 0.35; cursor: not-allowed; background: var(--cream2); text-decoration: line-through; }
+  .time-slot:disabled:not(.booked) { opacity: 0.5; cursor: not-allowed; }
+
   /* ADMIN TABS */
   .admin-tabs {
     display: flex;
@@ -361,6 +396,16 @@
   }
   .modal h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: var(--text-main); }
 
+  /* CONFIRM MODAL */
+  #confirm-modal { display: flex !important; opacity: 0; pointer-events: none; transition: opacity .3s; }
+  #confirm-modal.show { opacity: 1; pointer-events: all; }
+  #confirm-modal .modal { transform: translateY(20px); transition: transform .3s; padding: 12px 0 0; background: var(--cream); border-top: none; }
+  #confirm-modal.show .modal { transform: translateY(0); }
+  .modal-header { padding: 0 24px 16px; display: flex; align-items: center; justify-content: space-between; }
+  .modal-title { font-size: 20px; font-weight: 600; color: var(--text-main); }
+  .modal-close { width: 32px; height: 32px; background: var(--cream2); border: none; border-radius: 50%; cursor: pointer; font-size: 18px; color: var(--text-soft); display: flex; align-items: center; justify-content: center; }
+  .modal-body { padding: 0 24px 40px; }
+
   /* INVITE LINK BOX */
   .invite-box {
     background: var(--cream2);
@@ -395,6 +440,230 @@
   .small-muted { font-size: 12px; color: var(--text-muted); }
   .row-split { display: flex; gap: 10px; }
   .row-split > * { flex: 1; }
+
+  /* ══════════════════════════════════════════════════════════════ */
+  /* DESKTOP RESPONSIVE LAYOUT (≥ 768px)                          */
+  /* ══════════════════════════════════════════════════════════════ */
+  @media (min-width: 768px) {
+    body {
+      display: block;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    #app {
+      max-width: 1400px;
+      margin: 0 auto;
+      height: 100dvh;
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    /* ── Layout grid: sidebar + content ── */
+    #screen-main.screen.active {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      grid-template-rows: auto 1fr;
+      height: 100%;
+      padding: 16px;
+      gap: 0;
+    }
+
+    .app-header {
+      grid-column: 2;
+      grid-row: 1;
+      padding: 20px 32px 16px;
+      border-bottom: none;
+      background: transparent;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .app-header-top {
+      justify-content: space-between;
+    }
+
+    /* ── Sidebar flutuante ── */
+    .bottom-nav {
+      position: static;
+      grid-column: 1;
+      grid-row: 1 / -1;
+      flex-direction: column;
+      align-items: stretch;
+      border-top: none;
+      border-right: none;
+      border-radius: var(--radius);
+      background: var(--white);
+      padding: 24px 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+      gap: 4px;
+      overflow-y: auto;
+      margin-right: 8px;
+      align-self: stretch;
+    }
+
+    .nav-btn {
+      flex: none;
+      flex-direction: row;
+      justify-content: flex-start;
+      padding: 14px 20px;
+      gap: 14px;
+      border-radius: var(--radius-sm);
+      transition: background .2s, color .2s;
+    }
+
+    .nav-btn:hover {
+      background: var(--cream2);
+    }
+
+    .nav-btn.active {
+      background: var(--teal-dim);
+      color: #000;
+    }
+
+    .nav-btn svg {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    .nav-btn span {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    /* ── Content area ── */
+    .scroll-body {
+      grid-column: 2;
+      grid-row: 2;
+      padding-bottom: 24px;
+    }
+
+    /* ── Room cards: multi-column grid ── */
+    #rooms-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      padding: 16px 36px 0;
+      max-width: 1400px;
+    }
+
+    .room-card {
+      transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+    }
+
+    .room-card:not(.maintenance):hover {
+      transform: translateY(-4px);
+      border-color: var(--teal-dim);
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
+    }
+
+    .room-card:not(.maintenance):active {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+    }
+
+    /* ── Bookings: multi-column grid ── */
+    #bookings-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 16px;
+      padding: 16px 36px;
+      max-width: 1400px;
+    }
+
+    .booking-item {
+      transition: box-shadow .2s;
+    }
+
+    .booking-item:hover {
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+    }
+
+    /* ── Page titles spacing in desktop ── */
+    .page-title { padding: 8px 36px 4px; }
+    .page-sub   { padding: 0 36px 8px; }
+
+    /* ── Admin panel ── */
+    .admin-tabs {
+      padding: 0 36px;
+    }
+
+    .admin-tab {
+      flex: none;
+      padding: 14px 28px;
+      transition: color .2s, border-color .2s;
+    }
+
+    .admin-tab:hover:not(.active) {
+      color: var(--text-main);
+    }
+
+    .list-item {
+      transition: box-shadow .2s;
+    }
+
+    .list-item:hover {
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+    }
+
+    /* ── Auth screens ── */
+    .auth-bg {
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+    }
+
+    .auth-card {
+      max-width: 440px;
+      width: 100%;
+    }
+
+    .auth-title,
+    .auth-sub {
+      max-width: 440px;
+    }
+
+    /* ── Modals: centered dialog ── */
+    .modal-overlay {
+      position: fixed;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal {
+      border-radius: 24px;
+      max-width: 520px;
+      width: 90%;
+      max-height: 85vh;
+    }
+
+    .modal-handle {
+      display: none;
+    }
+
+    /* ── Toast ── */
+    #toast {
+      bottom: 40px;
+    }
+
+    /* ── Empty states span full grid ── */
+    .empty {
+      grid-column: 1 / -1;
+    }
+  }
+
+  /* ── Extra wide screens (≥ 1200px) ── */
+  @media (min-width: 1200px) {
+    #rooms-list {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    #bookings-list {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
 </style>
 </head>
 <body>
@@ -537,10 +806,24 @@
       <!-- Tab: Super admin -->
       <div class="tab-panel" id="tab-super" style="display:none">
         <div class="page-title">Super Admin</div>
-        <div class="page-sub">Gerenciar estabelecimentos do sistema</div>
-        <div class="content-pad">
-          <button class="btn btn-primary" onclick="openEstForm()">+ Novo estabelecimento</button>
-          <div id="super-ests-list"></div>
+        <div class="page-sub">Gerenciar o sistema</div>
+        <div class="admin-tabs" id="super-tabs">
+          <button class="admin-tab active" data-superpanel="super-panel-ests" onclick="switchSuperPanel('super-panel-ests')">Estabelecimentos</button>
+          <button class="admin-tab" data-superpanel="super-panel-admins" onclick="switchSuperPanel('super-panel-admins')">Super Admins</button>
+        </div>
+
+        <div class="admin-panel active" id="super-panel-ests">
+          <div class="content-pad">
+            <button class="btn btn-primary" onclick="openEstForm()">+ Novo estabelecimento</button>
+            <div id="super-ests-list"></div>
+          </div>
+        </div>
+
+        <div class="admin-panel" id="super-panel-admins" style="display:none">
+          <div class="content-pad">
+            <button class="btn btn-primary" onclick="openSuperAdminForm()">+ Novo super admin</button>
+            <div id="super-admins-list"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -551,6 +834,24 @@
   <!-- ═══ MODALS ═══ -->
   <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
     <div class="modal" id="modal-content"></div>
+  </div>
+
+  <!-- ═══ CONFIRM MODAL ═══ -->
+  <div id="confirm-modal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <div class="modal-title" id="confirm-title">Confirmação</div>
+        <button class="modal-close" onclick="closeConfirmModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirm-message" style="margin-bottom:24px;color:var(--text-soft);font-size:15px"></p>
+        <div style="display:flex;gap:12px">
+          <button class="btn btn-outline" style="flex:1" onclick="closeConfirmModal()">Cancelar</button>
+          <button class="btn btn-primary" style="flex:1" id="confirm-yes-btn">Confirmar</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="toast"></div>
@@ -571,6 +872,13 @@ let state = {
 };
 let signupToken = null;
 let signupMode = null;
+let bDate = null;
+let bStart = null;
+let bEnd = null;
+let bRoomId = null;
+let existingBookings = [];
+let calYear, calMonth;
+const SLOTS = ['07:00','07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30','20:00','20:30','21:00'];
 
 // ═══════════════════════════════════════════════════════════════════════
 //  API HELPER (injects X-Establishment-Id automatically)
@@ -642,6 +950,31 @@ function clearSession() {
   state.currentEstId = null;
   ['token','user','memberships','currentEstId'].forEach(k => LS.removeItem(k));
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+//  CONFIRM MODAL
+// ═══════════════════════════════════════════════════════════════════════
+let confirmActionCallback = null;
+
+function showConfirm(message, callback) {
+  document.getElementById('confirm-message').textContent = message;
+  confirmActionCallback = callback;
+  document.getElementById('confirm-modal').classList.add('show');
+}
+
+function closeConfirmModal() {
+  document.getElementById('confirm-modal').classList.remove('show');
+  confirmActionCallback = null;
+}
+
+document.getElementById('confirm-yes-btn').onclick = () => {
+  if (confirmActionCallback) confirmActionCallback();
+  closeConfirmModal();
+};
+
+document.getElementById('confirm-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeConfirmModal();
+});
 
 // ═══════════════════════════════════════════════════════════════════════
 //  BOOT
@@ -938,29 +1271,181 @@ async function loadRooms() {
 }
 
 function bookRoom(roomId) {
-  const today = new Date().toISOString().slice(0, 10);
+  bRoomId = roomId;
+  bDate = null; bStart = null; bEnd = null; existingBookings = [];
   openModal(`
     <h2>Nova reserva</h2>
-    <div class="field light"><label>Data</label><input type="date" class="input light" id="bk-date" min="${today}" value="${today}"></div>
-    <div class="row-split">
-      <div class="field light"><label>Início</label><input type="time" class="input light" id="bk-start"></div>
-      <div class="field light"><label>Fim</label><input type="time" class="input light" id="bk-end"></div>
+    <div id="bstep-date">
+      <p class="section-title">Escolha o dia</p>
+      <div class="calendar">
+        <div class="cal-nav">
+          <button class="cal-nav-btn" id="cal-prev">‹</button>
+          <div class="cal-title" id="cal-month-label">—</div>
+          <button class="cal-nav-btn" id="cal-next">›</button>
+        </div>
+        <div class="cal-grid" id="cal-daynames"></div>
+        <div class="cal-grid" id="cal-days"></div>
+      </div>
+      <button class="btn btn-primary" id="btn-next-time" disabled onclick="goToStepTime()">Próximo →</button>
     </div>
-    <div class="field light"><label>Descrição (opcional)</label><textarea class="input light" id="bk-desc" placeholder="Assunto da reunião..."></textarea></div>
-    <button class="btn btn-primary" onclick="submitBooking(${roomId})">Reservar</button>
-    <div style="height:10px"></div>
-    <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+    <div id="bstep-time" style="display:none">
+      <p class="section-title">Início</p>
+      <div class="times-grid" id="start-times"></div>
+      <p class="section-title" style="margin-top:20px">Término</p>
+      <div class="times-grid" id="end-times"></div>
+      <div style="display:flex;gap:12px;margin-top:20px">
+        <button class="btn btn-outline" style="width:auto;flex:1" onclick="goToStepDate()">← Voltar</button>
+        <button class="btn btn-primary" style="flex:2" id="btn-next-confirm" disabled onclick="goToStepConfirm()">Confirmar →</button>
+      </div>
+    </div>
+    <div id="bstep-confirm" style="display:none">
+      <p class="section-title">Confirmar reserva</p>
+      <div class="calendar" style="margin-bottom:16px">
+        <div id="confirm-summary" style="font-size:14px;color:var(--text-soft);line-height:1.8"></div>
+      </div>
+      <div class="field light"><label>Descrição (opcional)</label><textarea class="input light" id="bk-desc" placeholder="Assunto da reunião..."></textarea></div>
+      <div style="display:flex;gap:12px;margin-top:12px">
+        <button class="btn btn-outline" style="width:auto;flex:1" onclick="goToStepTime()">← Voltar</button>
+        <button class="btn btn-primary" style="flex:2" onclick="submitBooking()">Reservar</button>
+      </div>
+    </div>
   `);
+  initCalendar();
 }
 
-async function submitBooking(roomId) {
-  const date = document.getElementById('bk-date').value;
-  const start_time = document.getElementById('bk-start').value;
-  const end_time = document.getElementById('bk-end').value;
-  const description = document.getElementById('bk-desc').value;
-  if (!date || !start_time || !end_time) return toast('Preencha data e horários', 'error');
+function initCalendar() {
+  const now = new Date();
+  calYear = now.getFullYear();
+  calMonth = now.getMonth();
+  renderCalendar();
+  document.getElementById('cal-prev').onclick = () => {
+    calMonth--;
+    if (calMonth < 0) { calMonth = 11; calYear--; }
+    renderCalendar();
+  };
+  document.getElementById('cal-next').onclick = () => {
+    calMonth++;
+    if (calMonth > 11) { calMonth = 0; calYear++; }
+    renderCalendar();
+  };
+}
+
+function renderCalendar() {
+  const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  document.getElementById('cal-month-label').textContent = months[calMonth] + ' ' + calYear;
+
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  const isCurrentMonth = calYear === today.getFullYear() && calMonth === today.getMonth();
+  const prevBtn = document.getElementById('cal-prev');
+  if (prevBtn) prevBtn.disabled = isCurrentMonth;
+
+  document.getElementById('cal-daynames').innerHTML =
+    ['D','S','T','Q','Q','S','S'].map(d => `<div class="cal-day-name">${d}</div>`).join('');
+
+  const first = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  let html = '';
+  for (let i = 0; i < first; i++) html += '<div></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(calYear, calMonth, d);
+    const dateStr = date.toISOString().slice(0, 10);
+    const isPast = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const isToday = dateStr === todayStr;
+    const isSel = dateStr === bDate;
+    html += `<button class="cal-day${isToday ? ' today' : ''}${isSel ? ' selected' : ''}" ${isPast ? 'disabled' : `onclick="selectDate('${dateStr}')"`}>${d}</button>`;
+  }
+  document.getElementById('cal-days').innerHTML = html;
+}
+
+function selectDate(dateStr) {
+  bDate = dateStr;
+  bStart = null;
+  bEnd = null;
+  const nextBtn = document.getElementById('btn-next-time');
+  if (nextBtn) nextBtn.disabled = false;
+  renderCalendar();
+}
+
+async function goToStepTime() {
+  document.getElementById('bstep-date').style.display = 'none';
+  document.getElementById('bstep-time').style.display = 'block';
   try {
-    await api('POST', '/bookings', { room_id: roomId, date, start_time, end_time, description });
+    existingBookings = await api('GET', `/bookings/room/${bRoomId}?date=${bDate}`);
+  } catch (e) { existingBookings = []; }
+  renderTimeSlots();
+}
+
+function goToStepDate() {
+  document.getElementById('bstep-time').style.display = 'none';
+  document.getElementById('bstep-confirm').style.display = 'none';
+  document.getElementById('bstep-date').style.display = 'block';
+}
+
+function goToStepConfirm() {
+  document.getElementById('bstep-time').style.display = 'none';
+  document.getElementById('bstep-confirm').style.display = 'block';
+  const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const [y, m, d] = bDate.split('-');
+  document.getElementById('confirm-summary').innerHTML =
+    `<strong>Data:</strong> ${d} de ${months[parseInt(m)-1]} de ${y}<br>
+     <strong>Início:</strong> ${bStart}<br>
+     <strong>Término:</strong> ${bEnd}`;
+}
+
+function isSlotBooked(slot, type) {
+  return existingBookings.some(b => {
+    if (type === 'start') return slot >= b.start_time && slot < b.end_time;
+    if (type === 'end') {
+      if (!bStart || slot <= bStart) return false;
+      return (bStart < b.end_time) && (slot > b.start_time);
+    }
+    return false;
+  });
+}
+
+function isSlotPast(slot) {
+  if (!bDate) return false;
+  const now = new Date();
+  const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  if (bDate !== todayStr) return false;
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const [h, min] = slot.split(':').map(Number);
+  return (h * 60 + min) <= nowMins;
+}
+
+function renderTimeSlots() {
+  const startEl = document.getElementById('start-times');
+  const endEl = document.getElementById('end-times');
+
+  startEl.innerHTML = SLOTS.slice(0, -1).map(s => {
+    const booked = isSlotBooked(s, 'start');
+    const past = isSlotPast(s);
+    const unavailable = booked || past;
+    return `<button class="time-slot${bStart===s?' selected':''}${unavailable?' booked':''}" ${unavailable?'disabled':''} onclick="selectStart('${s}')">${s}</button>`;
+  }).join('');
+
+  endEl.innerHTML = SLOTS.slice(1).map(s => {
+    const booked = isSlotBooked(s, 'end');
+    const past = isSlotPast(s);
+    const invalidDuration = bStart && s <= bStart;
+    const visuallyBooked = booked || past || invalidDuration;
+    const disabled = !bStart || visuallyBooked;
+    return `<button class="time-slot${bEnd===s?' selected':''}${visuallyBooked?' booked':''}" ${disabled?'disabled':''} onclick="selectEnd('${s}')">${s}</button>`;
+  }).join('');
+
+  document.getElementById('btn-next-confirm').disabled = !(bStart && bEnd);
+}
+
+function selectStart(s) { bStart = s; bEnd = null; renderTimeSlots(); }
+function selectEnd(s)   { bEnd   = s; renderTimeSlots(); }
+
+async function submitBooking() {
+  const description = document.getElementById('bk-desc').value;
+  if (!bDate || !bStart || !bEnd) return toast('Preencha data e horários', 'error');
+  try {
+    await api('POST', '/bookings', { room_id: bRoomId, date: bDate, start_time: bStart, end_time: bEnd, description });
     closeModal();
     toast('Reserva criada!', 'success');
     switchTab('bookings');
@@ -993,30 +1478,36 @@ async function loadBookings() {
             ${isAdminHere() && b.user_name ? `<div class="booking-user">por ${escapeHtml(b.user_name)}</div>` : ''}
             ${b.description ? `<div class="booking-desc">${escapeHtml(b.description)}</div>` : ''}
           </div>
-          <button class="btn btn-sm btn-danger" onclick="cancelBooking(${b.id})">×</button>
+          <button class="btn btn-sm btn-danger" onclick="cancelBooking(${b.id}, this)">×</button>
         </div>
       `;
     }).join('');
   } catch (e) { c.innerHTML = `<div class="empty">${escapeHtml(e.message)}</div>`; }
 }
 
-async function cancelBooking(id) {
-  if (!confirm('Cancelar esta reserva?')) return;
-  try {
-    await api('DELETE', '/bookings/' + id);
-    toast('Reserva cancelada');
-    loadBookings();
-  } catch (e) { toast(e.message, 'error'); }
+async function cancelBooking(id, btn) {
+  showConfirm('Cancelar esta reserva?', async () => {
+    btn.disabled = true;
+    try {
+      await api('DELETE', '/bookings/' + id);
+      toast('Reserva cancelada', 'success');
+      loadBookings();
+    } catch(e) {
+      toast(e.message, 'error');
+      btn.disabled = false;
+    }
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════
 //  ADMIN TAB
 // ═══════════════════════════════════════════════════════════════════════
 function loadAdminTab() {
-  document.querySelectorAll('.admin-tab').forEach(t => {
+  const container = document.getElementById('tab-admin');
+  container.querySelectorAll('.admin-tab').forEach(t => {
     t.onclick = () => {
-      document.querySelectorAll('.admin-tab').forEach(x => x.classList.remove('active'));
-      document.querySelectorAll('.admin-panel').forEach(x => x.classList.remove('active'));
+      container.querySelectorAll('.admin-tab').forEach(x => x.classList.remove('active'));
+      container.querySelectorAll('.admin-panel').forEach(x => x.classList.remove('active'));
       t.classList.add('active');
       document.getElementById(t.dataset.panel).classList.add('active');
       loadAdminPanel(t.dataset.panel);
@@ -1052,9 +1543,9 @@ async function loadAdminUsers() {
         <div class="list-actions">
           ${u.status !== 'approved' ? `<button class="btn btn-sm btn-success" onclick="userSet('${u.id}','approved')">Aprovar</button>` : ''}
           ${u.status !== 'blocked' ? `<button class="btn btn-sm btn-danger" onclick="userSet('${u.id}','blocked')">Bloquear</button>` : ''}
-          ${u.role === 'user' ? `<button class="btn btn-sm btn-outline" onclick="userRole('${u.id}','admin')">Promover</button>`
-                              : `<button class="btn btn-sm btn-outline" onclick="userRole('${u.id}','user')">Rebaixar</button>`}
-          <button class="btn btn-sm btn-danger" onclick="userRemove('${u.id}')">Remover</button>
+          ${u.role === 'user' ? `<button class="btn btn-sm btn-outline" onclick="toggleUserRole('${u.id}','admin')">Promover</button>`
+                              : `<button class="btn btn-sm btn-outline" onclick="toggleUserRole('${u.id}','user')">Rebaixar</button>`}
+          <button class="btn btn-sm btn-danger" onclick="deleteUser('${u.id}')">Remover</button>
         </div>
       </div>
     `).join('');
@@ -1064,14 +1555,28 @@ async function userSet(uid, status) {
   try { await api('PATCH', '/admin/users/' + uid, { status }); toast('Atualizado'); loadAdminUsers(); }
   catch (e) { toast(e.message, 'error'); }
 }
-async function userRole(uid, role) {
-  try { await api('PATCH', '/admin/users/' + uid, { role }); toast('Atualizado'); loadAdminUsers(); }
-  catch (e) { toast(e.message, 'error'); }
+async function toggleUserRole(uid, newRole) {
+  const label = newRole === 'admin' ? 'administrador' : 'usuário comum';
+  showConfirm(`Alterar este usuário para ${label}?`, async () => {
+    try {
+      await api('POST', '/admin/users/' + uid, { role: newRole });
+      toast(`Papel alterado para ${label}`, 'success');
+      loadAdminUsers();
+    } catch(e) {
+      toast(e.message || 'Erro ao alterar papel', 'error');
+    }
+  });
 }
-async function userRemove(uid) {
-  if (!confirm('Remover este usuário do estabelecimento?')) return;
-  try { await api('DELETE', '/admin/users/' + uid); toast('Removido'); loadAdminUsers(); }
-  catch (e) { toast(e.message, 'error'); }
+async function deleteUser(uid) {
+  showConfirm('Tem certeza que deseja excluir este usuário definitivamente?', async () => {
+    try {
+      await api('DELETE', '/admin/users/' + uid);
+      toast('Usuário excluído', 'success');
+      loadAdminUsers();
+    } catch(e) {
+      toast(e.message, 'error');
+    }
+  });
 }
 
 // --- Rooms (admin view with CRUD) ---
@@ -1094,7 +1599,7 @@ async function loadAdminRooms() {
         <div class="list-actions">
           <button class="btn btn-sm btn-outline" onclick='openRoomForm(${JSON.stringify(r)})'>Editar</button>
           <button class="btn btn-sm btn-outline" onclick="toggleRoomStatus(${r.id},'${r.status}')">${r.status === 'active' ? 'Manutenção' : 'Ativar'}</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteRoom(${r.id})">Remover</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteAdminRoom(${r.id})">Remover</button>
         </div>
       </div>
     `).join('');
@@ -1126,10 +1631,17 @@ async function toggleRoomStatus(id, cur) {
   try { await api('PATCH', '/rooms/' + id, { status: next }); loadAdminRooms(); }
   catch (e) { toast(e.message, 'error'); }
 }
-async function deleteRoom(id) {
-  if (!confirm('Remover esta sala? Reservas serão canceladas.')) return;
-  try { await api('DELETE', '/rooms/' + id); toast('Removida'); loadAdminRooms(); }
-  catch (e) { toast(e.message, 'error'); }
+async function deleteAdminRoom(rid) {
+  showConfirm('Tem certeza que deseja excluir esta sala definitivamente?', async () => {
+    try {
+      await api('DELETE', '/rooms/' + rid);
+      toast('Sala excluída', 'success');
+      loadAdminRooms();
+      loadRooms();
+    } catch(e) {
+      toast(e.message, 'error');
+    }
+  });
 }
 
 // --- Invitation ---
@@ -1181,15 +1693,67 @@ async function loadAdminSettings() {
       <div class="field light"><label>Nome do remetente</label><input class="input light" id="st-from" value="${escapeHtml(s.mail_from_name || '')}"></div>
 
       <div class="section-title" style="margin-top:20px">Domínios permitidos</div>
-      <p class="small-muted" style="margin-bottom:10px">Lista JSON de domínios aceitos no cadastro. Ex: <code>["empresa.com"]</code>. Deixe <code>[]</code> para permitir qualquer domínio.</p>
-      <div class="field light"><textarea class="input light" id="st-domains">${escapeHtml(s.allowed_domains || '[]')}</textarea></div>
+      <p class="small-muted" style="margin-bottom:10px">Separe por vírgula. Ex: <code>empresa.com, outra.com</code>. Deixe em branco para permitir qualquer domínio.</p>
+      <div class="field light"><input class="input light" id="st-domains" placeholder="empresa.com, outra.com" value="${escapeHtml(domainsToText(s.allowed_domains))}"></div>
 
       <button class="btn btn-primary" onclick="saveSettings()">Salvar</button>
       <div style="height:10px"></div>
       <button class="btn btn-outline" onclick="testEmail()">Enviar e-mail de teste</button>
+
+      <div style="height:24px"></div>
+      <p class="section-title">Templates de E-mail</p>
+      <p style="font-size:13px;color:var(--text-soft);margin-bottom:4px">Personalize o conteúdo dos e-mails automáticos. Use as variáveis abaixo no assunto ou no corpo:</p>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px">
+        <span style="font-size:12px;background:var(--cream2);color:var(--teal-dim);padding:3px 10px;border-radius:20px;font-family:'Space Mono',monospace">{{nome}}</span>
+        <span style="font-size:12px;background:var(--cream2);color:var(--teal-dim);padding:3px 10px;border-radius:20px;font-family:'Space Mono',monospace">{{email}}</span>
+        <span style="font-size:12px;background:var(--cream2);color:var(--teal-dim);padding:3px 10px;border-radius:20px;font-family:'Space Mono',monospace">{{setor}}</span>
+        <span style="font-size:12px;background:var(--cream2);color:var(--teal-dim);padding:3px 10px;border-radius:20px;font-family:'Space Mono',monospace">{{data}}</span>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:18px">⏰ Variáveis exclusivas do lembrete: <code style="background:var(--cream2);padding:2px 6px;border-radius:4px;font-family:'Space Mono',monospace;color:var(--teal-dim)">{{sala}}</code> <code style="background:var(--cream2);padding:2px 6px;border-radius:4px;font-family:'Space Mono',monospace;color:var(--teal-dim)">{{data_reserva}}</code> <code style="background:var(--cream2);padding:2px 6px;border-radius:4px;font-family:'Space Mono',monospace;color:var(--teal-dim)">{{inicio}}</code> <code style="background:var(--cream2);padding:2px 6px;border-radius:4px;font-family:'Space Mono',monospace;color:var(--teal-dim)">{{fim}}</code> <code style="background:var(--cream2);padding:2px 6px;border-radius:4px;font-family:'Space Mono',monospace;color:var(--teal-dim)">{{descricao}}</code></p>
+
+      <div style="display:flex;gap:4px;margin-bottom:16px;background:var(--cream2);padding:4px;border-radius:10px">
+        <button class="tpl-tab active" onclick="switchTplTab('reg')"      id="tpl-tab-reg"      style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:var(--white);color:var(--text-main);font-family:'DM Sans',sans-serif;transition:all .2s">📝 Novo Cadastro</button>
+        <button class="tpl-tab"        onclick="switchTplTab('approved')" id="tpl-tab-approved" style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-soft);font-family:'DM Sans',sans-serif;transition:all .2s">✅ Aprovação</button>
+        <button class="tpl-tab"        onclick="switchTplTab('blocked')"  id="tpl-tab-blocked"  style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-soft);font-family:'DM Sans',sans-serif;transition:all .2s">🚫 Bloqueio</button>
+        <button class="tpl-tab"        onclick="switchTplTab('reminder')" id="tpl-tab-reminder" style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-soft);font-family:'DM Sans',sans-serif;transition:all .2s">⏰ Lembrete</button>
+      </div>
+
+      <div id="tpl-panel-reg">
+        <div class="form-group" style="margin-bottom:12px"><label>Assunto</label><input id="tpl-reg-subject" class="input light" type="text" placeholder="Assunto do e-mail"></div>
+        <div class="form-group" style="margin:0"><label>Corpo (HTML)</label><textarea id="tpl-reg-body" class="input light" rows="8" style="height:auto;padding:12px;resize:vertical;line-height:1.5;font-family:'Space Mono',monospace;font-size:12px"></textarea></div>
+      </div>
+      <div id="tpl-panel-approved" style="display:none">
+        <div class="form-group" style="margin-bottom:12px"><label>Assunto</label><input id="tpl-approved-subject" class="input light" type="text" placeholder="Assunto do e-mail"></div>
+        <div class="form-group" style="margin:0"><label>Corpo (HTML)</label><textarea id="tpl-approved-body" class="input light" rows="8" style="height:auto;padding:12px;resize:vertical;line-height:1.5;font-family:'Space Mono',monospace;font-size:12px"></textarea></div>
+      </div>
+      <div id="tpl-panel-blocked" style="display:none">
+        <div class="form-group" style="margin-bottom:12px"><label>Assunto</label><input id="tpl-blocked-subject" class="input light" type="text" placeholder="Assunto do e-mail"></div>
+        <div class="form-group" style="margin:0"><label>Corpo (HTML)</label><textarea id="tpl-blocked-body" class="input light" rows="8" style="height:auto;padding:12px;resize:vertical;line-height:1.5;font-family:'Space Mono',monospace;font-size:12px"></textarea></div>
+      </div>
+      <div id="tpl-panel-reminder" style="display:none">
+        <div class="form-group" style="margin-bottom:12px"><label>Assunto</label><input id="tpl-reminder-subject" class="input light" type="text" placeholder="Assunto do e-mail"></div>
+        <div class="form-group" style="margin:0"><label>Corpo (HTML)</label><textarea id="tpl-reminder-body" class="input light" rows="8" style="height:auto;padding:12px;resize:vertical;line-height:1.5;font-family:'Space Mono',monospace;font-size:12px"></textarea></div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn btn-secondary btn-sm" onclick="saveEmailTemplates()" style="background:var(--white);border:1.5px solid var(--border);box-shadow:var(--shadow);flex:2;transition:border .3s" onmouseover="this.style.borderColor='var(--teal-dim)'" onmouseout="this.style.borderColor='var(--border)'" id="save-tpl-btn">Salvar Templates</button>
+        <button class="btn btn-outline btn-sm" onclick="resetEmailTemplates()" style="flex:1" id="reset-tpl-btn">↺ Restaurar Padrões</button>
+      </div>
     `;
+    loadEmailTemplates();
   } catch (e) { c.innerHTML = `<div class="empty">${escapeHtml(e.message)}</div>`; }
 }
+function domainsToText(raw) {
+  try {
+    const arr = JSON.parse(raw || '[]');
+    return Array.isArray(arr) ? arr.join(', ') : '';
+  } catch { return ''; }
+}
+function textToDomains(text) {
+  const arr = text.split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
+  return JSON.stringify(arr);
+}
+
 async function saveSettings() {
   const payload = {
     mail_server: document.getElementById('st-server').value.trim(),
@@ -1197,7 +1761,7 @@ async function saveSettings() {
     mail_username: document.getElementById('st-user').value.trim(),
     mail_password: document.getElementById('st-pass').value,
     mail_from_name: document.getElementById('st-from').value.trim(),
-    allowed_domains: document.getElementById('st-domains').value.trim(),
+    allowed_domains: textToDomains(document.getElementById('st-domains').value),
   };
   try { await api('POST', '/admin/settings', payload); toast('Salvo', 'success'); loadAdminSettings(); }
   catch (e) { toast(e.message, 'error'); }
@@ -1207,10 +1771,169 @@ async function testEmail() {
   catch (e) { toast(e.message, 'error'); }
 }
 
+// --- Email Templates ---
+let currentTplTab = 'reg';
+
+function switchTplTab(name) {
+  currentTplTab = name;
+  ['reg','approved','blocked','reminder'].forEach(t => {
+    const panel = document.getElementById('tpl-panel-' + t);
+    const tab   = document.getElementById('tpl-tab-' + t);
+    const active = t === name;
+    panel.style.display = active ? '' : 'none';
+    tab.style.background = active ? 'var(--white)' : 'transparent';
+    tab.style.color      = active ? 'var(--text-main)' : 'var(--text-soft)';
+  });
+}
+
+async function loadEmailTemplates() {
+  try {
+    const data = await api('GET', '/admin/email-templates');
+    document.getElementById('tpl-reg-subject').value      = data.email_reg_subject      || '';
+    document.getElementById('tpl-reg-body').value         = data.email_reg_body         || '';
+    document.getElementById('tpl-approved-subject').value = data.email_approved_subject || '';
+    document.getElementById('tpl-approved-body').value    = data.email_approved_body    || '';
+    document.getElementById('tpl-blocked-subject').value  = data.email_blocked_subject  || '';
+    document.getElementById('tpl-blocked-body').value     = data.email_blocked_body     || '';
+    document.getElementById('tpl-reminder-subject').value = data.email_reminder_subject || '';
+    document.getElementById('tpl-reminder-body').value    = data.email_reminder_body    || '';
+  } catch(e) { console.error('Erro ao carregar templates', e); }
+}
+
+async function saveEmailTemplates() {
+  const btn = document.getElementById('save-tpl-btn');
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    await api('POST', '/admin/email-templates', {
+      email_reg_subject:      document.getElementById('tpl-reg-subject').value,
+      email_reg_body:         document.getElementById('tpl-reg-body').value,
+      email_approved_subject: document.getElementById('tpl-approved-subject').value,
+      email_approved_body:    document.getElementById('tpl-approved-body').value,
+      email_blocked_subject:  document.getElementById('tpl-blocked-subject').value,
+      email_blocked_body:     document.getElementById('tpl-blocked-body').value,
+      email_reminder_subject: document.getElementById('tpl-reminder-subject').value,
+      email_reminder_body:    document.getElementById('tpl-reminder-body').value,
+    });
+    toast('Templates salvos!', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+  btn.disabled = false; btn.textContent = 'Salvar Templates';
+}
+
+function resetEmailTemplates() {
+  showConfirm('Restaurar todos os templates para o padrão original?', async () => {
+    const btn = document.getElementById('reset-tpl-btn');
+    btn.disabled = true; btn.textContent = '...';
+    try {
+      await api('POST', '/admin/email-templates/reset', {});
+      await loadEmailTemplates();
+      toast('Templates restaurados!', 'success');
+    } catch(e) { toast(e.message, 'error'); }
+    btn.disabled = false; btn.textContent = '↺ Restaurar Padrões';
+  });
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 //  SUPER ADMIN TAB
 // ═══════════════════════════════════════════════════════════════════════
+function switchSuperPanel(panelId) {
+  document.querySelectorAll('#super-panel-ests, #super-panel-admins').forEach(p => p.style.display = 'none');
+  document.getElementById(panelId).style.display = 'block';
+  document.querySelectorAll('#super-tabs .admin-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.superpanel === panelId)
+  );
+  if (panelId === 'super-panel-admins') loadSuperAdmins();
+}
+
+async function loadSuperAdmins() {
+  const c = document.getElementById('super-admins-list');
+  c.innerHTML = '<div class="empty" style="margin-top:20px">Carregando...</div>';
+  try {
+    const users = await api('GET', '/super/users', null, { estContext: false });
+    const admins = users.filter(u => u.is_super_admin);
+    if (!admins.length) { c.innerHTML = '<div class="empty" style="margin-top:20px">Nenhum super admin.</div>'; return; }
+    c.innerHTML = admins.map(u => `
+      <div class="list-item" style="margin-top:12px">
+        <div class="list-avatar">${escapeHtml(u.name.charAt(0).toUpperCase())}</div>
+        <div class="list-info">
+          <div class="list-name">${escapeHtml(u.name)}</div>
+          <div class="list-sub">${escapeHtml(u.email)}</div>
+        </div>
+        <div class="list-actions">
+          <button class="btn btn-sm btn-outline" onclick="openEditSuperAdmin(${JSON.stringify(u).replace(/"/g,'&quot;')})">Editar</button>
+          ${u.id !== state.user.id
+            ? `<button class="btn btn-sm btn-danger" onclick="deleteSuperAdmin('${u.id}', '${escapeHtml(u.name)}')">Excluir</button>`
+            : '<span class="small-muted" style="padding:0 8px">Você</span>'}
+        </div>
+      </div>
+    `).join('');
+  } catch (e) { c.innerHTML = `<div class="empty">${escapeHtml(e.message)}</div>`; }
+}
+
+function openSuperAdminForm() {
+  openModal(`
+    <h2>Novo super admin</h2>
+    <div class="field light"><label>Nome completo</label><input class="input light" id="sa-name"></div>
+    <div class="field light"><label>E-mail</label><input type="email" class="input light" id="sa-email"></div>
+    <div class="field light"><label>Senha (mín. 8 caracteres)</label><input type="password" class="input light" id="sa-pass"></div>
+    <button class="btn btn-primary" onclick="createSuperAdmin()">Criar</button>
+    <div style="height:8px"></div>
+    <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+  `);
+}
+
+async function createSuperAdmin() {
+  const name = document.getElementById('sa-name').value.trim();
+  const email = document.getElementById('sa-email').value.trim();
+  const password = document.getElementById('sa-pass').value;
+  if (!name || !email || !password) return toast('Preencha todos os campos', 'error');
+  try {
+    await api('POST', '/super/users', { name, email, password }, { estContext: false });
+    closeModal();
+    toast('Super admin criado', 'success');
+    loadSuperAdmins();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function openEditSuperAdmin(u) {
+  openModal(`
+    <h2>Editar super admin</h2>
+    <div class="field light"><label>Nome completo</label><input class="input light" id="sa-name" value="${escapeHtml(u.name)}"></div>
+    <div class="field light"><label>E-mail</label><input type="email" class="input light" id="sa-email" value="${escapeHtml(u.email)}"></div>
+    <div class="field light"><label>Nova senha (deixe vazio para não alterar)</label><input type="password" class="input light" id="sa-pass" placeholder="••••••••"></div>
+    <button class="btn btn-primary" onclick="saveSuperAdmin('${u.id}')">Salvar</button>
+    <div style="height:8px"></div>
+    <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+  `);
+}
+
+async function saveSuperAdmin(uid) {
+  const name = document.getElementById('sa-name').value.trim();
+  const email = document.getElementById('sa-email').value.trim();
+  const password = document.getElementById('sa-pass').value;
+  if (!name || !email) return toast('Nome e e-mail são obrigatórios', 'error');
+  const body = { name, email };
+  if (password) body.password = password;
+  try {
+    await api('PATCH', '/super/users/' + uid, body, { estContext: false });
+    closeModal();
+    toast('Salvo', 'success');
+    loadSuperAdmins();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteSuperAdmin(uid, name) {
+  showConfirm(`Excluir o super admin "${name}"? Esta ação não pode ser desfeita.`, async () => {
+    try {
+      await api('DELETE', '/super/users/' + uid, null, { estContext: false });
+      toast('Super admin removido', 'success');
+      loadSuperAdmins();
+    } catch (e) { toast(e.message, 'error'); }
+  });
+}
+
 async function loadSuperTab() {
+  // Reset to first sub-panel whenever the tab is opened
+  switchSuperPanel('super-panel-ests');
   const c = document.getElementById('super-ests-list');
   c.innerHTML = '<div class="empty" style="margin-top:20px">Carregando...</div>';
   try {

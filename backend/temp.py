@@ -647,6 +647,86 @@ def super_toggle_super_admin(uid):
     return jsonify(u.to_dict())
 
 
+@app.post('/api/super/users')
+@super_admin_required
+def super_create_user():
+    """Create a new super admin user."""
+    d = request.get_json() or {}
+    name = str(d.get('name', '')).strip()
+    email = str(d.get('email', '')).lower().strip()
+    password = str(d.get('password', ''))
+    if not name or not email or not password:
+        return jsonify({'error': 'Nome, e-mail e senha são obrigatórios'}), 400
+    if not SAFE_EMAIL_RE.match(email):
+        return jsonify({'error': 'E-mail inválido'}), 400
+    if len(password) < 8:
+        return jsonify({'error': 'A senha deve ter no mínimo 8 caracteres'}), 400
+    if User.query.filter_by(email=email).first():
+        return jsonify({'error': 'E-mail já cadastrado'}), 409
+    u = User(
+        name=name, email=email,
+        password_hash=generate_password_hash(password),
+        is_super_admin=True, department='',
+    )
+    db.session.add(u)
+    db.session.commit()
+    return jsonify(u.to_dict()), 201
+
+
+@app.patch('/api/super/users/<string:uid>')
+@super_admin_required
+def super_update_user(uid):
+    """Edit a super admin user's name, email or password."""
+    u = db.session.get(User, uid)
+    if not u:
+        return jsonify({'error': 'Usuário não encontrado'}), 404
+    d = request.get_json() or {}
+    if 'name' in d:
+        name = str(d['name']).strip()
+        if not name:
+            return jsonify({'error': 'Nome não pode ser vazio'}), 400
+        u.name = name
+    if 'email' in d:
+        email = str(d['email']).lower().strip()
+        if not SAFE_EMAIL_RE.match(email):
+            return jsonify({'error': 'E-mail inválido'}), 400
+        conflict = User.query.filter_by(email=email).first()
+        if conflict and conflict.id != uid:
+            return jsonify({'error': 'E-mail já cadastrado'}), 409
+        u.email = email
+    if 'password' in d:
+        password = str(d['password'])
+        if len(password) < 8:
+            return jsonify({'error': 'A senha deve ter no mínimo 8 caracteres'}), 400
+        u.password_hash = generate_password_hash(password)
+    db.session.commit()
+    return jsonify(u.to_dict())
+
+
+@app.delete('/api/super/users/<string:uid>')
+@super_admin_required
+def super_delete_user(uid):
+    """Delete a super admin user. Cannot delete self or the last super admin."""
+    current_id = get_jwt_identity()
+    if uid == current_id:
+        return jsonify({'error': 'Você não pode excluir sua própria conta'}), 400
+    u = db.session.get(User, uid)
+    if not u:
+        return jsonify({'error': 'Usuário não encontrado'}), 404
+    if u.is_super_admin:
+        remaining = User.query.filter(
+            User.is_super_admin == True, User.id != uid
+        ).count()
+        if remaining == 0:
+            return jsonify({'error': 'Não é possível excluir o último super admin'}), 400
+    # Remove memberships and bookings before deleting
+    UserEstablishment.query.filter_by(user_id=uid).delete()
+    Booking.query.filter_by(user_id=uid).delete()
+    db.session.delete(u)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
 @app.post('/api/super/establishments/<int:eid>/memberships')
 @super_admin_required
 def super_create_membership(eid):
