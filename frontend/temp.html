@@ -1438,7 +1438,13 @@ function renderTimeSlots() {
   document.getElementById('btn-next-confirm').disabled = !(bStart && bEnd);
 }
 
-function selectStart(s) { bStart = s; bEnd = null; renderTimeSlots(); }
+function selectStart(s) {
+  bStart = s; bEnd = null; renderTimeSlots();
+  if (window.innerWidth < 768) {
+    const endTitle = document.getElementById('end-times')?.previousElementSibling;
+    if (endTitle) setTimeout(() => endTitle.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  }
+}
 function selectEnd(s)   { bEnd   = s; renderTimeSlots(); }
 
 async function submitBooking() {
