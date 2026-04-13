@@ -569,6 +569,8 @@ let state = {
   currentEstId: parseInt(LS.getItem('currentEstId') || '0') || null,
   currentTab: 'rooms',
 };
+let signupToken = null;
+let signupMode = null;
 
 // ═══════════════════════════════════════════════════════════════════════
 //  API HELPER (injects X-Establishment-Id automatically)
@@ -707,9 +709,6 @@ async function doLogin() {
 // ═══════════════════════════════════════════════════════════════════════
 //  SIGNUP VIA INVITATION
 // ═══════════════════════════════════════════════════════════════════════
-let signupToken = null;
-let signupMode = null;
-
 async function loadSignupScreen(token) {
   signupToken = token;
   showScreen('signup');
