@@ -1031,10 +1031,23 @@ def delete_room(rid):
 def list_bookings():
     """List bookings in the current establishment.
     - Admins (or super admin) see all bookings of the establishment.
-    - Regular users see only their own bookings in this establishment."""
+    - Regular users see only their own bookings in this establishment.
+    - Expired bookings (end_time already passed in the establishment's timezone)
+      are excluded automatically."""
+    now_local = _get_establishment_now(g.establishment.id)
+    today = now_local.strftime('%Y-%m-%d')
+    now_time = now_local.strftime('%H:%M')
+
     q = Booking.query.filter_by(establishment_id=g.establishment.id)
     if not g.is_admin:
         q = q.filter_by(user_id=g.user.id)
+    # Exclude bookings whose end_time has already passed
+    q = q.filter(
+        db.or_(
+            Booking.date > today,
+            db.and_(Booking.date == today, Booking.end_time > now_time),
+        )
+    )
     bs = q.order_by(Booking.date, Booking.start_time).all()
     return jsonify([b.to_dict() for b in bs])
 
