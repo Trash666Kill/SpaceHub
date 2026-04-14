@@ -1585,12 +1585,13 @@ def _render(template, replacements):
     return template
 
 
-def _user_replacements(user, establishment):
+def _user_replacements(user, establishment, registered_at=None):
+    date = registered_at or user.created_at
     return {
         '{{nome}}': user.name,
         '{{email}}': user.email,
         '{{setor}}': user.department or '—',
-        '{{data}}': user.created_at.strftime('%d/%m/%Y %H:%M') if user.created_at else '—',
+        '{{data}}': date.strftime('%d/%m/%Y %H:%M') if date else '—',
         '{{estabelecimento}}': establishment.name,
     }
 
@@ -1611,8 +1612,8 @@ def _booking_replacements(user, booking, establishment):
     return base
 
 
-def _email_new_registration(establishment, new_user):
-    """Notify admins of a specific establishment about a new pending registration."""
+def _email_new_registration(establishment, new_user, registered_at=None):
+    """Notify admins (and super admins) about a new pending registration."""
     admin_rows = (
         db.session.query(User)
         .join(UserEstablishment, UserEstablishment.user_id == User.id)
@@ -1623,13 +1624,15 @@ def _email_new_registration(establishment, new_user):
         )
         .all()
     )
-    recipients = [a.email for a in admin_rows]
+    super_admin_rows = User.query.filter_by(is_super_admin=True).all()
+    seen = {u.id for u in admin_rows}
+    all_recipients = list(admin_rows) + [u for u in super_admin_rows if u.id not in seen]
+    recipients = [u.email for u in all_recipients]
     if not recipients:
         return
-    subj = _render(_get_template(establishment.id, 'email_reg_subject'),
-                   _user_replacements(new_user, establishment))
-    body = _render(_get_template(establishment.id, 'email_reg_body'),
-                   _user_replacements(new_user, establishment))
+    replacements = _user_replacements(new_user, establishment, registered_at=registered_at)
+    subj = _render(_get_template(establishment.id, 'email_reg_subject'), replacements)
+    body = _render(_get_template(establishment.id, 'email_reg_body'), replacements)
     _send_email_async(establishment.id, subj, recipients, body)
 
 
@@ -1928,7 +1931,7 @@ def public_invitation_join(token):
     db.session.commit()
 
     # Notify establishment admins about existing user requesting access
-    _email_new_registration(est, u)
+    _email_new_registration(est, u, registered_at=m.created_at)
 
     return jsonify({
         'message': 'Solicitação enviada. Aguarde a aprovação do administrador.',
