@@ -1099,6 +1099,16 @@ def create_booking():
             return jsonify({'error': 'Não é possível reservar horários que já passaram'}), 400
     if check_conflict(r.id, d['date'], d['start_time'], d['end_time']):
         return jsonify({'error': 'Horário já reservado para esta sala'}), 409
+    if not g.is_admin:
+        user_conflict = Booking.query.filter(
+            Booking.user_id == g.user.id,
+            Booking.date == d['date'],
+            Booking.room_id != r.id,
+            Booking.start_time < d['end_time'],
+            Booking.end_time > d['start_time'],
+        ).first()
+        if user_conflict:
+            return jsonify({'error': f'Você já possui uma reserva neste horário na sala "{user_conflict.room.name}"'}), 409
     b = Booking(
         establishment_id=g.establishment.id,
         user_id=g.user.id,
