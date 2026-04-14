@@ -294,6 +294,8 @@
   .room-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
   .room-name { font-size: 17px; font-weight: 600; color: var(--text-main); }
   .room-capacity { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text-soft); margin-top: 3px; }
+  .resource-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .resource-tag { font-size: 12px; background: var(--cream2); color: var(--text-soft); padding: 4px 10px; border-radius: 20px; }
 
   /* BOOKING ITEMS */
   .booking-item {
@@ -1319,7 +1321,13 @@ async function loadRooms() {
   try {
     const rooms = await api('GET', '/rooms');
     if (!rooms.length) { c.innerHTML = '<div class="empty">Nenhuma sala cadastrada</div>'; return; }
-    c.innerHTML = rooms.map(r => `
+    c.innerHTML = rooms.map(r => {
+      const tagsHtml = r.resources && r.resources.length ? `
+        <div class="resource-tags">
+          ${r.resources.map(x => `<span class="resource-tag">${escapeHtml(x)}</span>`).join('')}
+        </div>
+      ` : '';
+      return `
       <div class="room-card ${r.status === 'maintenance' ? 'maintenance' : ''}"
            onclick="${r.status === 'maintenance' ? '' : 'bookRoom('+r.id+')'}">
         <div class="room-card-header">
@@ -1329,8 +1337,10 @@ async function loadRooms() {
           </div>
           <span class="status-badge badge-${r.status}">${r.status === 'active' ? 'Ativa' : 'Manutenção'}</span>
         </div>
+        ${tagsHtml}
       </div>
-    `).join('');
+      `;
+    }).join('');
   } catch (e) { c.innerHTML = `<div class="empty">${escapeHtml(e.message)}</div>`; }
 }
 
@@ -1691,6 +1701,7 @@ function openRoomForm(room) {
     <h2>${room ? 'Editar sala' : 'Nova sala'}</h2>
     <div class="field light"><label>Nome</label><input class="input light" id="room-name" value="${room ? escapeHtml(room.name) : ''}"></div>
     <div class="field light"><label>Capacidade</label><input type="number" class="input light" id="room-cap" value="${room ? room.capacity : 4}"></div>
+    <div class="field light"><label>Recursos (separados por vírgula)</label><input class="input light" id="r-resources" type="text" placeholder="Projetor, TV, Quadro Branco" value="${room && room.resources && room.resources.length ? room.resources.join(', ') : ''}"></div>
     <button class="btn btn-primary" onclick="saveRoom()">Salvar</button>
     <div style="height:8px"></div>
     <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
@@ -1700,9 +1711,10 @@ async function saveRoom() {
   const name = document.getElementById('room-name').value.trim();
   const capacity = parseInt(document.getElementById('room-cap').value);
   if (!name || !capacity) return toast('Preencha nome e capacidade', 'error');
+  const resources = document.getElementById('r-resources').value.split(',').map(s => s.trim()).filter(Boolean);
   try {
-    if (editRoomId) await api('PATCH', '/rooms/' + editRoomId, { name, capacity });
-    else await api('POST', '/rooms', { name, capacity });
+    if (editRoomId) await api('PATCH', '/rooms/' + editRoomId, { name, capacity, resources });
+    else await api('POST', '/rooms', { name, capacity, resources });
     closeModal(); toast('Salvo'); loadAdminRooms();
   } catch (e) { toast(e.message, 'error'); }
 }
