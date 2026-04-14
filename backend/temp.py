@@ -3,15 +3,13 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
-import uuid, json, os, re, threading
-
-try:
-    from flask_mail import Mail, Message
-    MAIL_AVAILABLE = True
-except ImportError:
-    MAIL_AVAILABLE = False
+from zoneinfo import ZoneInfo, available_timezones
+from sqlalchemy import update as sa_update
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import uuid, json, os, re, threading, secrets, smtplib, ssl
 
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
@@ -19,20 +17,30 @@ try:
 except ImportError:
     APSCHEDULER_AVAILABLE = False
 
+# ── Status / role constants ───────────────────────────────────────────────────
+ROOM_STATUSES  = {'active', 'maintenance', 'inactive'}
+USER_STATUSES  = {'pending', 'approved', 'blocked'}
+USER_ROLES     = {'admin', 'user'}
+DEFAULT_TZ     = 'America/Sao_Paulo'
+
+_JWT_DEFAULT_SECRET = 'dev-secret-change-in-production!!'  # 33 chars — only for dev
+
 app = Flask(__name__)
-CORS(app, origins="*", expose_headers=["X-Establishment-Id"])
+
+# CORS: restrict to explicit origins when CORS_ORIGINS env var is set.
+# In production, set CORS_ORIGINS to your frontend domain(s).
+_cors_origins = os.environ.get('CORS_ORIGINS', '*')
+CORS(app, origins=_cors_origins, expose_headers=["X-Establishment-Id"])
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///spacehub.db'
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'connect_args': {'check_same_thread': False}}
-app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET', 'dev-secret-change-in-production')
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=8)
 
-# Flask-Mail runtime config is loaded per-establishment on demand
-app.config['MAIL_USE_TLS'] = True
+_jwt_secret = os.environ.get('JWT_SECRET', _JWT_DEFAULT_SECRET)
+app.config['JWT_SECRET_KEY'] = _jwt_secret
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=8)
 
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
-mail = Mail(app) if MAIL_AVAILABLE else None
 
 # ── Models ────────────────────────────────────────────────────────────────────
 
@@ -42,7 +50,7 @@ class Establishment(db.Model):
     name = db.Column(db.String(120), nullable=False)
     address = db.Column(db.String(255), nullable=True, default='')
     status = db.Column(db.String(12), default='active')  # active | inactive
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
         return {
@@ -62,7 +70,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     department = db.Column(db.String(100), nullable=True, default='')
     is_super_admin = db.Column(db.Boolean, default=False, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     def to_dict(self, establishment_id=None):
         """Serialize user. If establishment_id is provided, includes role/status
@@ -110,7 +118,7 @@ class UserEstablishment(db.Model):
     establishment_id = db.Column(db.Integer, db.ForeignKey('establishments.id'), primary_key=True)
     role = db.Column(db.String(10), default='user', nullable=False)       # admin | user
     status = db.Column(db.String(12), default='pending', nullable=False)  # pending | approved | blocked
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = db.relationship('User', backref='memberships')
     establishment = db.relationship('Establishment', backref='memberships')
@@ -124,7 +132,7 @@ class Invitation(db.Model):
     token = db.Column(db.String(36), unique=True, nullable=False,
                       default=lambda: str(uuid.uuid4()))
     created_by = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     revoked_at = db.Column(db.DateTime, nullable=True)
     active = db.Column(db.Boolean, default=True, nullable=False)
 
@@ -147,6 +155,14 @@ class Setting(db.Model):
     # all settings are scoped per establishment.
     establishment_id = db.Column(db.Integer, db.ForeignKey('establishments.id'),
                                  primary_key=True)
+    key = db.Column(db.String(50), primary_key=True)
+    value = db.Column(db.Text)
+
+
+class GlobalSetting(db.Model):
+    __tablename__ = 'global_settings'
+    # Key/value store for system-level settings (e.g. super-admin SMTP).
+    # Not scoped to any establishment.
     key = db.Column(db.String(50), primary_key=True)
     value = db.Column(db.Text)
 
@@ -186,7 +202,7 @@ class Booking(db.Model):
     end_time = db.Column(db.String(5), nullable=False)
     description = db.Column(db.String(200), nullable=True, default='')
     reminder_sent = db.Column(db.Boolean, default=False, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = db.relationship('User', backref='bookings')
     room = db.relationship('Room', backref='bookings')
@@ -280,6 +296,22 @@ EMAIL_DEFAULTS = {
         '<p style="font-size:12px;color:#999">SpaceHub — Sistema de Reserva de Salas</p>'
         '</div>'
     ),
+    'email_booking_confirmed_subject': '📅 Reserva confirmada — {{estabelecimento}}',
+    'email_booking_confirmed_body': (
+        '<div style="font-family:sans-serif;max-width:480px;margin:0 auto;color:#222">'
+        '<h2 style="color:#34a853">📅 Reserva confirmada!</h2>'
+        '<p>Olá, <strong>{{nome}}</strong>!</p>'
+        '<p>Sua reserva em <strong>{{estabelecimento}}</strong> foi registrada com sucesso:</p>'
+        '<table style="width:100%;border-collapse:collapse;margin:16px 0">'
+        '<tr><td style="padding:8px;font-weight:600;color:#555;width:120px">Sala</td><td style="padding:8px">{{sala}}</td></tr>'
+        '<tr style="background:#f5f5f5"><td style="padding:8px;font-weight:600;color:#555">Data</td><td style="padding:8px">{{data_reserva}}</td></tr>'
+        '<tr><td style="padding:8px;font-weight:600;color:#555">Horário</td><td style="padding:8px">{{inicio}} – {{fim}}</td></tr>'
+        '<tr style="background:#f5f5f5"><td style="padding:8px;font-weight:600;color:#555">Descrição</td><td style="padding:8px">{{descricao}}</td></tr>'
+        '</table>'
+        '<hr style="border:none;border-top:1px solid #eee;margin:24px 0">'
+        '<p style="font-size:12px;color:#999">SpaceHub — Sistema de Reserva de Salas</p>'
+        '</div>'
+    ),
 }
 
 SETTING_DEFAULTS = {
@@ -289,7 +321,53 @@ SETTING_DEFAULTS = {
     'mail_username': '',
     'mail_password': '',
     'mail_from_name': 'SpaceHub',
+    'timezone': DEFAULT_TZ,
 }
+
+# Global SMTP keys managed exclusively by super admins
+GLOBAL_SMTP_KEYS = ('mail_server', 'mail_port', 'mail_username', 'mail_password', 'mail_from_name')
+GLOBAL_SMTP_DEFAULTS = {
+    'mail_server': 'smtp.gmail.com',
+    'mail_port': '587',
+    'mail_username': '',
+    'mail_password': '',
+    'mail_from_name': 'SpaceHub',
+}
+
+
+class AuditLog(db.Model):
+    __tablename__ = 'audit_logs'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    establishment_id = db.Column(db.Integer, db.ForeignKey('establishments.id'),
+                                 nullable=True, index=True)
+    actor_id   = db.Column(db.String(36), nullable=True)   # who performed the action
+    actor_name = db.Column(db.String(120), nullable=True)
+    action     = db.Column(db.String(80), nullable=False)   # e.g. 'user.approved'
+    target     = db.Column(db.String(200), nullable=True)   # human-readable target
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'establishment_id': self.establishment_id,
+            'actor_name': self.actor_name,
+            'action': self.action,
+            'target': self.target,
+            'created_at': self.created_at.isoformat(),
+        }
+
+
+class PasswordResetToken(db.Model):
+    __tablename__ = 'password_reset_tokens'
+    id         = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id    = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False, index=True)
+    token      = db.Column(db.String(64), unique=True, nullable=False,
+                           default=lambda: secrets.token_urlsafe(48))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used       = db.Column(db.Boolean, default=False, nullable=False)
+
+    user = db.relationship('User', backref='reset_tokens')
 
 
 def seed_establishment_settings(establishment_id):
@@ -301,6 +379,54 @@ def seed_establishment_settings(establishment_id):
         if not Setting.query.filter_by(establishment_id=establishment_id, key=key).first():
             db.session.add(Setting(establishment_id=establishment_id, key=key, value=value))
     db.session.commit()
+
+
+# ── Timezone & Audit Helpers ─────────────────────────────────────────────────
+
+def _get_establishment_tz(est_id):
+    """Return ZoneInfo for an establishment, falling back to DEFAULT_TZ."""
+    tz_name = _get_setting(est_id, 'timezone', DEFAULT_TZ) or DEFAULT_TZ
+    try:
+        return ZoneInfo(tz_name)
+    except Exception:
+        return ZoneInfo(DEFAULT_TZ)
+
+
+def _get_establishment_now(est_id):
+    """Return current datetime in the establishment's configured timezone."""
+    return datetime.now(_get_establishment_tz(est_id))
+
+
+def _audit(action, target=None, establishment_id=None, actor=None):
+    """Write an audit log entry. Call before db.session.commit()."""
+    try:
+        entry = AuditLog(
+            establishment_id=establishment_id,
+            actor_id=actor.id if actor else None,
+            actor_name=actor.name if actor else 'system',
+            action=action,
+            target=target,
+        )
+        db.session.add(entry)
+    except Exception as e:
+        app.logger.error(f'Audit log error: {e}')
+
+
+# ── Password Validation ───────────────────────────────────────────────────────
+
+_PASSWORD_RE = re.compile(
+    r'^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*()\-_=+\[\]{}|;:,.<>?/\\]).{8,}$'
+)
+
+
+def _validate_password(password):
+    """Return (ok, error_message). Requires 8+ chars, upper, lower, digit, special."""
+    if len(password) < 8:
+        return False, 'A senha deve ter no mínimo 8 caracteres'
+    if not _PASSWORD_RE.match(password):
+        return False, ('A senha deve conter pelo menos: 1 maiúscula, 1 minúscula, '
+                       '1 número e 1 caractere especial (!@#$%^&*…)')
+    return True, None
 
 
 # ── Context & Auth Helpers ────────────────────────────────────────────────────
@@ -444,8 +570,9 @@ def setup():
         return jsonify({'error': 'Nome, e-mail e senha são obrigatórios'}), 400
     if not SAFE_EMAIL_RE.match(email):
         return jsonify({'error': 'E-mail não pode conter acentos ou caracteres especiais'}), 400
-    if len(password) < 8:
-        return jsonify({'error': 'A senha deve ter no mínimo 8 caracteres'}), 400
+    pwd_ok, pwd_err = _validate_password(password)
+    if not pwd_ok:
+        return jsonify({'error': pwd_err}), 400
     if User.query.filter_by(email=email).first():
         return jsonify({'error': 'E-mail já cadastrado'}), 409
     sa = User(
@@ -580,20 +707,23 @@ def super_delete_establishment(eid):
         Room.query.filter_by(establishment_id=eid).delete()
         UserEstablishment.query.filter_by(establishment_id=eid).delete()
         Invitation.query.filter_by(establishment_id=eid).delete()
+        AuditLog.query.filter_by(establishment_id=eid).delete()
         Setting.query.filter_by(establishment_id=eid).delete()
         db.session.delete(est)
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        app.logger.error(f'Error deleting establishment #{eid}: {e}')
+        return jsonify({'error': 'Erro interno ao remover estabelecimento'}), 500
     return jsonify({'message': 'Estabelecimento removido'})
 
 
 def _cancel_future_bookings_on_deactivate(est):
     """When an establishment is deactivated, cancel all future bookings and
     notify each affected user, using the establishment's own SMTP + templates."""
-    today = datetime.now().strftime('%Y-%m-%d')
-    now_time = datetime.now().strftime('%H:%M')
+    now_local = _get_establishment_now(est.id)
+    today = now_local.strftime('%Y-%m-%d')
+    now_time = now_local.strftime('%H:%M')
     future = Booking.query.filter(
         Booking.establishment_id == est.id,
     ).filter(
@@ -659,8 +789,9 @@ def super_create_user():
         return jsonify({'error': 'Nome, e-mail e senha são obrigatórios'}), 400
     if not SAFE_EMAIL_RE.match(email):
         return jsonify({'error': 'E-mail inválido'}), 400
-    if len(password) < 8:
-        return jsonify({'error': 'A senha deve ter no mínimo 8 caracteres'}), 400
+    pwd_ok, pwd_err = _validate_password(password)
+    if not pwd_ok:
+        return jsonify({'error': pwd_err}), 400
     if User.query.filter_by(email=email).first():
         return jsonify({'error': 'E-mail já cadastrado'}), 409
     u = User(
@@ -696,8 +827,9 @@ def super_update_user(uid):
         u.email = email
     if 'password' in d:
         password = str(d['password'])
-        if len(password) < 8:
-            return jsonify({'error': 'A senha deve ter no mínimo 8 caracteres'}), 400
+        pwd_ok, pwd_err = _validate_password(password)
+        if not pwd_ok:
+            return jsonify({'error': pwd_err}), 400
         u.password_hash = generate_password_hash(password)
     db.session.commit()
     return jsonify(u.to_dict())
@@ -762,6 +894,52 @@ def super_create_membership(eid):
     }), 201
 
 
+# ── Super Admin: Global SMTP ──────────────────────────────────────────────────
+
+@app.get('/api/super/smtp')
+@super_admin_required
+def get_global_smtp():
+    """Return global SMTP settings (password masked) for super admins."""
+    result = {}
+    for k in GLOBAL_SMTP_KEYS:
+        if k == 'mail_password':
+            result['mail_password_set'] = bool(_get_global_setting(k, ''))
+        else:
+            result[k] = _get_global_setting(k, GLOBAL_SMTP_DEFAULTS.get(k, ''))
+    return jsonify(result)
+
+
+@app.post('/api/super/smtp')
+@super_admin_required
+def update_global_smtp():
+    """Save global SMTP settings. Only super admins can call this."""
+    d = request.get_json() or {}
+    for k in GLOBAL_SMTP_KEYS:
+        if k not in d:
+            continue
+        if k == 'mail_password' and d[k] == '':
+            continue  # empty string means "leave unchanged"
+        _set_global_setting(k, str(d[k]) if d[k] is not None else '')
+    db.session.commit()
+    return jsonify({'message': 'Configurações de SMTP global salvas'})
+
+
+@app.post('/api/super/smtp/test-email')
+@super_admin_required
+def test_global_smtp():
+    """Send a test email using the global super-admin SMTP."""
+    cfg = _get_global_mail_config()
+    if not cfg:
+        return jsonify({'error': 'Configurações de SMTP global não definidas'}), 400
+    u = g.user
+    _send_global_email_async(
+        '✅ Teste de SMTP global — SpaceHub',
+        [u.email],
+        f'<p>Olá, <strong>{u.name}</strong>! O SMTP global do SpaceHub está funcionando.</p>',
+    )
+    return jsonify({'message': f'E-mail de teste enviado para {u.email}'})
+
+
 # ── Rooms (scoped to current establishment) ──────────────────────────────────
 
 @app.get('/api/rooms')
@@ -781,14 +959,21 @@ def create_room():
         capacity = int(d['capacity'])
     except (ValueError, TypeError):
         return jsonify({'error': 'Capacidade inválida'}), 400
+    status = str(d.get('status', 'active')).strip().lower()
+    if status not in ROOM_STATUSES:
+        return jsonify({'error': f'Status inválido. Valores permitidos: {", ".join(ROOM_STATUSES)}'}), 400
+    name = str(d['name']).strip()
+    if not name:
+        return jsonify({'error': 'Nome não pode ser vazio'}), 400
     r = Room(
         establishment_id=g.establishment.id,
-        name=str(d['name']).strip(),
+        name=name,
         capacity=capacity,
         resources=json.dumps(d.get('resources', [])),
-        status=d.get('status', 'active'),
+        status=status,
     )
     db.session.add(r)
+    _audit(action='room.created', target=name, establishment_id=g.establishment.id, actor=g.user)
     db.session.commit()
     return jsonify(r.to_dict()), 201
 
@@ -801,9 +986,15 @@ def update_room(rid):
         return jsonify({'error': 'Sala não encontrada'}), 404
     d = request.get_json() or {}
     if 'name' in d:
-        r.name = str(d['name']).strip()
+        name = str(d['name']).strip()
+        if not name:
+            return jsonify({'error': 'Nome não pode ser vazio'}), 400
+        r.name = name
     if 'status' in d:
-        r.status = d['status']
+        new_status = str(d['status']).strip().lower()
+        if new_status not in ROOM_STATUSES:
+            return jsonify({'error': f'Status inválido. Valores permitidos: {", ".join(ROOM_STATUSES)}'}), 400
+        r.status = new_status
     if 'capacity' in d:
         try:
             r.capacity = int(d['capacity'])
@@ -823,11 +1014,13 @@ def delete_room(rid):
         return jsonify({'error': 'Sala não encontrada'}), 404
     try:
         Booking.query.filter_by(room_id=rid).delete()
+        _audit(action='room.deleted', target=r.name, establishment_id=g.establishment.id, actor=g.user)
         db.session.delete(r)
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        app.logger.error(f'Error deleting room #{rid}: {e}')
+        return jsonify({'error': 'Erro interno ao remover sala'}), 500
     return jsonify({'message': 'Sala removida'})
 
 
@@ -871,10 +1064,16 @@ def create_booking():
         return jsonify({'error': 'Sala não encontrada neste estabelecimento'}), 404
     if r.status == 'maintenance':
         return jsonify({'error': 'Sala em manutenção'}), 400
+    # Validate time format
+    try:
+        datetime.strptime(d['start_time'], '%H:%M')
+        datetime.strptime(d['end_time'], '%H:%M')
+    except ValueError:
+        return jsonify({'error': 'Horário inválido (use HH:MM)'}), 400
     if d['start_time'] >= d['end_time']:
         return jsonify({'error': 'Horário inválido'}), 400
-    # Reject past bookings
-    now = datetime.now()
+    # Reject past bookings — use establishment timezone
+    now = _get_establishment_now(g.establishment.id)
     try:
         booking_date = datetime.strptime(d['date'], '%Y-%m-%d').date()
     except ValueError:
@@ -882,10 +1081,7 @@ def create_booking():
     if booking_date < now.date():
         return jsonify({'error': 'Não é possível reservar em datas passadas'}), 400
     if booking_date == now.date():
-        try:
-            booking_start = datetime.strptime(d['start_time'], '%H:%M').time()
-        except ValueError:
-            return jsonify({'error': 'Horário inválido'}), 400
+        booking_start = datetime.strptime(d['start_time'], '%H:%M').time()
         if booking_start <= now.time():
             return jsonify({'error': 'Não é possível reservar horários que já passaram'}), 400
     if check_conflict(r.id, d['date'], d['start_time'], d['end_time']):
@@ -901,6 +1097,7 @@ def create_booking():
     )
     db.session.add(b)
     db.session.commit()
+    _email_booking_confirmed(g.establishment, g.user, b)
     return jsonify(b.to_dict()), 201
 
 
@@ -980,7 +1177,20 @@ def admin_update_user(uid):
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        app.logger.error(f'Error updating user membership: {e}')
+        return jsonify({'error': 'Erro interno ao atualizar usuário'}), 500
+
+    # Audit log
+    _audit(
+        action=f'user.{m.status}' if old_status != m.status else f'user.role_changed',
+        target=f'{u.name} ({u.email})',
+        establishment_id=g.establishment.id,
+        actor=g.user,
+    )
+    try:
+        db.session.commit()
+    except Exception:
+        pass  # audit entry is non-critical
 
     # Email notifications on status transitions
     new_status = m.status
@@ -1014,22 +1224,46 @@ def admin_remove_user(uid):
         if remaining_admins == 0:
             return jsonify({'error': 'Não é possível remover o último admin deste estabelecimento'}), 400
     try:
+        u_name = u.name if (u := db.session.get(User, uid)) else uid
         Booking.query.filter_by(
             establishment_id=g.establishment.id, user_id=uid
         ).delete()
         db.session.delete(m)
+        _audit(
+            action='user.removed',
+            target=f'{u_name} ({uid})',
+            establishment_id=g.establishment.id,
+            actor=g.user,
+        )
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        app.logger.error(f'Error removing user {uid} from establishment: {e}')
+        return jsonify({'error': 'Erro interno ao remover usuário'}), 500
     return jsonify({'message': 'Usuário removido do estabelecimento'})
+
+
+# ── Audit Log ─────────────────────────────────────────────────────────────────
+
+@app.get('/api/admin/audit-log')
+@establishment_admin_required
+def get_audit_log():
+    """Return the last 200 audit entries for the current establishment."""
+    entries = (
+        AuditLog.query
+        .filter_by(establishment_id=g.establishment.id)
+        .order_by(AuditLog.created_at.desc())
+        .limit(200)
+        .all()
+    )
+    return jsonify([e.to_dict() for e in entries])
 
 
 # ── Establishment Settings (SMTP, allowed domains) ───────────────────────────
 
 # Keys that are safe to expose without admin (e.g. allowed_domains for signup UI
 # hint). Everything else requires admin of the establishment.
-PUBLIC_SETTING_KEYS = {'allowed_domains'}
+PUBLIC_SETTING_KEYS = {'allowed_domains', 'timezone'}
 # Sensitive keys never returned in plaintext
 SENSITIVE_SETTING_KEYS = {'mail_password'}
 
@@ -1045,6 +1279,27 @@ def _set_setting(est_id, key, value):
         s.value = value
     else:
         db.session.add(Setting(establishment_id=est_id, key=key, value=value))
+
+
+def _get_global_setting(key, default=None):
+    s = GlobalSetting.query.filter_by(key=key).first()
+    return s.value if s else default
+
+
+def _set_global_setting(key, value):
+    s = GlobalSetting.query.filter_by(key=key).first()
+    if s:
+        s.value = value
+    else:
+        db.session.add(GlobalSetting(key=key, value=value))
+
+
+def _get_global_mail_config():
+    """Load super-admin global SMTP config. Returns dict or None if not configured."""
+    cfg = {k: _get_global_setting(k, GLOBAL_SMTP_DEFAULTS.get(k, '')) for k in GLOBAL_SMTP_KEYS}
+    if not cfg.get('mail_username') or not cfg.get('mail_password'):
+        return None
+    return cfg
 
 
 @app.get('/api/settings')
@@ -1074,20 +1329,32 @@ def update_settings():
     for k, v in d.items():
         if k not in allowed_keys:
             continue  # silently ignore unknown keys (protects email templates)
-        # Empty string for password means "leave unchanged"
         if k == 'mail_password' and v == '':
+            continue  # empty string means "leave unchanged"
+        if k == 'timezone':
+            tz_val = str(v).strip()
+            try:
+                ZoneInfo(tz_val)  # validate
+            except Exception:
+                return jsonify({'error': f'Fuso horário inválido: {tz_val}'}), 400
+            _set_setting(g.establishment.id, k, tz_val)
             continue
         _set_setting(g.establishment.id, k, str(v) if v is not None else '')
     db.session.commit()
     return jsonify({'message': 'Configurações salvas'})
 
 
+@app.get('/api/timezones')
+def list_timezones():
+    """Return sorted list of available IANA timezone names."""
+    tzs = sorted(available_timezones())
+    return jsonify(tzs)
+
+
 @app.post('/api/admin/settings/test-email')
 @establishment_admin_required
 def test_email():
-    """Send a real test email using the current establishment's SMTP."""
-    if not MAIL_AVAILABLE:
-        return jsonify({'error': 'flask-mail não instalado'}), 400
+    """Send a test email using the current establishment's SMTP."""
     cfg = _get_establishment_mail_config(g.establishment.id)
     if not cfg:
         return jsonify({'error': 'Configurações de e-mail não definidas'}), 400
@@ -1174,7 +1441,7 @@ def regenerate_invitation():
     ).all()
     for c in current:
         c.active = False
-        c.revoked_at = datetime.utcnow()
+        c.revoked_at = datetime.now(timezone.utc)
     new_inv = Invitation(
         establishment_id=g.establishment.id,
         created_by=g.user.id,
@@ -1196,7 +1463,7 @@ def revoke_invitation():
         return jsonify({'message': 'Nenhum convite ativo'}), 200
     for c in current:
         c.active = False
-        c.revoked_at = datetime.utcnow()
+        c.revoked_at = datetime.now(timezone.utc)
     db.session.commit()
     return jsonify({'message': 'Convite revogado'})
 
@@ -1205,8 +1472,6 @@ def revoke_invitation():
 
 def _get_establishment_mail_config(est_id):
     """Load SMTP settings for a specific establishment. Returns dict or None."""
-    if not MAIL_AVAILABLE:
-        return None
     keys = ['mail_server', 'mail_port', 'mail_username', 'mail_password', 'mail_from_name']
     rows = Setting.query.filter(
         Setting.establishment_id == est_id,
@@ -1219,31 +1484,79 @@ def _get_establishment_mail_config(est_id):
 
 
 def _send_email_async(est_id, subject, recipients, html_body):
-    """Send email in a background thread using the given establishment's SMTP."""
-    if not MAIL_AVAILABLE or not recipients:
+    """Send e-mail in an isolated background thread using smtplib directly.
+
+    Each call creates its own SMTP connection with the establishment's credentials —
+    no shared global state, fully thread-safe even when multiple establishments send
+    simultaneously.
+    """
+    if not recipients:
         return
+
     def _send():
         with app.app_context():
             cfg = _get_establishment_mail_config(est_id)
             if not cfg:
                 app.logger.warning(f'No SMTP config for est #{est_id}; email dropped')
                 return
+            server    = cfg.get('mail_server') or 'smtp.gmail.com'
+            port      = int(cfg.get('mail_port') or 587)
+            username  = cfg['mail_username']
+            password  = cfg['mail_password']
+            from_name = cfg.get('mail_from_name') or 'SpaceHub'
             try:
-                app.config['MAIL_SERVER'] = cfg.get('mail_server') or 'smtp.gmail.com'
-                app.config['MAIL_PORT'] = int(cfg.get('mail_port') or 587)
-                app.config['MAIL_USE_TLS'] = True
-                app.config['MAIL_USERNAME'] = cfg['mail_username']
-                app.config['MAIL_PASSWORD'] = cfg['mail_password']
-                app.config['MAIL_DEFAULT_SENDER'] = (
-                    cfg.get('mail_from_name') or 'SpaceHub',
-                    cfg['mail_username'],
-                )
-                mail.init_app(app)
-                msg = Message(subject=subject, recipients=recipients, html=html_body)
-                mail.send(msg)
+                mime = MIMEMultipart('alternative')
+                mime['Subject'] = subject
+                mime['From']    = f'{from_name} <{username}>'
+                mime['To']      = ', '.join(recipients)
+                mime.attach(MIMEText(html_body, 'html', 'utf-8'))
+
+                ctx = ssl.create_default_context()
+                with smtplib.SMTP(server, port, timeout=15) as smtp:
+                    smtp.ehlo()
+                    smtp.starttls(context=ctx)
+                    smtp.login(username, password)
+                    smtp.sendmail(username, recipients, mime.as_string())
                 app.logger.info(f'Email sent (est #{est_id}) to {recipients}: {subject}')
             except Exception as e:
                 app.logger.error(f'Email error (est #{est_id}): {e}')
+
+    threading.Thread(target=_send, daemon=True).start()
+
+
+def _send_global_email_async(subject, recipients, html_body):
+    """Send e-mail using the global super-admin SMTP config."""
+    if not recipients:
+        return
+
+    def _send():
+        with app.app_context():
+            cfg = _get_global_mail_config()
+            if not cfg:
+                app.logger.warning('No global SMTP config; email dropped')
+                return
+            server    = cfg.get('mail_server') or 'smtp.gmail.com'
+            port      = int(cfg.get('mail_port') or 587)
+            username  = cfg['mail_username']
+            password  = cfg['mail_password']
+            from_name = cfg.get('mail_from_name') or 'SpaceHub'
+            try:
+                mime = MIMEMultipart('alternative')
+                mime['Subject'] = subject
+                mime['From']    = f'{from_name} <{username}>'
+                mime['To']      = ', '.join(recipients)
+                mime.attach(MIMEText(html_body, 'html', 'utf-8'))
+
+                ctx = ssl.create_default_context()
+                with smtplib.SMTP(server, port, timeout=15) as smtp:
+                    smtp.ehlo()
+                    smtp.starttls(context=ctx)
+                    smtp.login(username, password)
+                    smtp.sendmail(username, recipients, mime.as_string())
+                app.logger.info(f'Global email sent to {recipients}: {subject}')
+            except Exception as e:
+                app.logger.error(f'Global email error: {e}')
+
     threading.Thread(target=_send, daemon=True).start()
 
 
@@ -1339,36 +1652,83 @@ def _email_booking_cancelled(establishment, user, booking):
     _send_email_async(establishment.id, subj, [user.email], body)
 
 
+def _email_booking_confirmed(establishment, user, booking):
+    subj = _render(_get_template(establishment.id, 'email_booking_confirmed_subject'),
+                   _booking_replacements(user, booking, establishment))
+    body = _render(_get_template(establishment.id, 'email_booking_confirmed_body'),
+                   _booking_replacements(user, booking, establishment))
+    _send_email_async(establishment.id, subj, [user.email], body)
+
+
 # ── Reminder Scheduler ────────────────────────────────────────────────────────
 
 def _send_booking_reminders():
     """Background job: find bookings starting in ~15 minutes and notify users.
-    Uses each booking's establishment for SMTP and templates."""
+    - Uses per-establishment timezone for time calculation.
+    - Checks a ±2 min window around the 15-min mark to tolerate scheduler jitter.
+    - Uses an atomic conditional UPDATE to prevent duplicate reminders under
+      concurrent execution (max_instances=1 also helps, but belt-and-suspenders)."""
     with app.app_context():
-        now = datetime.now()
-        target = now + timedelta(minutes=15)
-        target_date = target.strftime('%Y-%m-%d')
-        target_time = target.strftime('%H:%M')
-        bookings = Booking.query.filter_by(
-            date=target_date,
-            start_time=target_time,
-            reminder_sent=False,
-        ).all()
-        for b in bookings:
-            if not b.user or not b.establishment:
+        # Get all active establishments that have pending reminders
+        active_est_ids = (
+            db.session.query(Booking.establishment_id)
+            .filter_by(reminder_sent=False)
+            .distinct()
+            .all()
+        )
+        for (est_id,) in active_est_ids:
+            est = db.session.get(Establishment, est_id)
+            if not est or est.status != 'active':
                 continue
-            if b.establishment.status != 'active':
-                continue
-            b.reminder_sent = True
-            db.session.commit()
-            _email_booking_reminder(b.establishment, b.user, b)
+            # Calculate target window in this establishment's timezone
+            now_local  = _get_establishment_now(est_id)
+            lo = now_local + timedelta(minutes=13)
+            hi = now_local + timedelta(minutes=17)
+            lo_date, lo_time = lo.strftime('%Y-%m-%d'), lo.strftime('%H:%M')
+            hi_date, hi_time = hi.strftime('%Y-%m-%d'), hi.strftime('%H:%M')
+
+            # Build a window query (handle same-day only for simplicity;
+            # bookings spanning midnight are an edge case not worth complicating)
+            if lo_date == hi_date:
+                candidates = Booking.query.filter(
+                    Booking.establishment_id == est_id,
+                    Booking.reminder_sent == False,
+                    Booking.date == lo_date,
+                    Booking.start_time >= lo_time,
+                    Booking.start_time <= hi_time,
+                ).all()
+            else:
+                # Rare window crossing midnight — include both sides
+                candidates = Booking.query.filter(
+                    Booking.establishment_id == est_id,
+                    Booking.reminder_sent == False,
+                    db.or_(
+                        db.and_(Booking.date == lo_date, Booking.start_time >= lo_time),
+                        db.and_(Booking.date == hi_date, Booking.start_time <= hi_time),
+                    ),
+                ).all()
+
+            for b in candidates:
+                if not b.user:
+                    continue
+                # Atomic claim: only send if we actually flip reminder_sent
+                result = db.session.execute(
+                    sa_update(Booking)
+                    .where(Booking.id == b.id, Booking.reminder_sent == False)
+                    .values(reminder_sent=True)
+                )
+                db.session.commit()
+                if result.rowcount == 0:
+                    continue  # another thread already handled it
+                _email_booking_reminder(est, b.user, b)
+                app.logger.info(f'Reminder sent for booking #{b.id} (est #{est_id})')
 
 
 def _start_reminder_scheduler():
     if not APSCHEDULER_AVAILABLE:
         app.logger.warning('APScheduler not installed — booking reminders disabled.')
         return
-    scheduler = BackgroundScheduler(timezone='America/Sao_Paulo')
+    scheduler = BackgroundScheduler(timezone='UTC')
     scheduler.add_job(
         _send_booking_reminders,
         trigger='interval',
@@ -1488,8 +1848,9 @@ def public_invitation_register(token):
         return jsonify({'error': 'Nome, e-mail, senha e setor são obrigatórios'}), 400
     if not SAFE_EMAIL_RE.match(email):
         return jsonify({'error': 'E-mail não pode conter acentos ou caracteres especiais'}), 400
-    if len(password) < 8:
-        return jsonify({'error': 'A senha deve ter no mínimo 8 caracteres'}), 400
+    pwd_ok, pwd_err = _validate_password(password)
+    if not pwd_ok:
+        return jsonify({'error': pwd_err}), 400
     ok, msg = _check_email_domain(email, est.id)
     if not ok:
         return jsonify({'error': msg}), 403
@@ -1562,6 +1923,99 @@ def public_invitation_join(token):
     }), 201
 
 
+# ── Password Reset ────────────────────────────────────────────────────────────
+
+@app.post('/api/auth/forgot-password')
+def forgot_password():
+    """Request a password reset. Always returns 200 to prevent email enumeration."""
+    d = request.get_json() or {}
+    email = str(d.get('email', '')).lower().strip()
+    if not email:
+        return jsonify({'message': 'Se o e-mail existir, você receberá as instruções.'}), 200
+
+    u = User.query.filter_by(email=email).first()
+    if not u:
+        return jsonify({'message': 'Se o e-mail existir, você receberá as instruções.'}), 200
+
+    # Invalidate previous tokens for this user
+    PasswordResetToken.query.filter_by(user_id=u.id, used=False).update({'used': True})
+
+    token = PasswordResetToken(
+        user_id=u.id,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+    )
+    db.session.add(token)
+    db.session.commit()
+
+    reset_body = (
+        f'<div style="font-family:sans-serif;max-width:480px;margin:0 auto;color:#222">'
+        f'<h2 style="color:#1a73e8">Redefinição de senha — SpaceHub</h2>'
+        f'<p>Olá, <strong>{u.name}</strong>!</p>'
+        f'<p>Recebemos uma solicitação para redefinir sua senha. '
+        f'Use o código abaixo (válido por 1 hora):</p>'
+        f'<div style="background:#f5f5f5;padding:16px;border-radius:8px;'
+        f'text-align:center;font-size:24px;font-family:monospace;'
+        f'letter-spacing:4px;margin:20px 0">{token.token}</div>'
+        f'<p style="font-size:13px;color:#999">Se você não solicitou isso, ignore este e-mail.</p>'
+        f'<hr style="border:none;border-top:1px solid #eee;margin:24px 0">'
+        f'<p style="font-size:12px;color:#999">SpaceHub — Sistema de Reserva de Salas</p>'
+        f'</div>'
+    )
+
+    sent = False
+    if u.is_super_admin:
+        # Super admins always use the global SMTP
+        cfg = _get_global_mail_config()
+        if cfg:
+            _send_global_email_async('🔑 Redefinição de senha — SpaceHub', [u.email], reset_body)
+            sent = True
+    else:
+        # Regular users: try any establishment SMTP they belong to
+        memberships = UserEstablishment.query.filter_by(user_id=u.id, status='approved').all()
+        for m in memberships:
+            cfg = _get_establishment_mail_config(m.establishment_id)
+            if cfg:
+                _send_email_async(
+                    m.establishment_id,
+                    '🔑 Redefinição de senha — SpaceHub',
+                    [u.email],
+                    reset_body,
+                )
+                sent = True
+                break
+
+    if not sent:
+        app.logger.warning(f'Password reset requested for {email} but no SMTP configured.')
+
+    return jsonify({'message': 'Se o e-mail existir, você receberá as instruções.'}), 200
+
+
+@app.post('/api/auth/reset-password')
+def reset_password():
+    """Validate reset token and set a new password."""
+    d = request.get_json() or {}
+    token_str = str(d.get('token', '')).strip()
+    new_password = str(d.get('password', ''))
+
+    if not token_str or not new_password:
+        return jsonify({'error': 'Token e nova senha são obrigatórios'}), 400
+
+    pwd_ok, pwd_err = _validate_password(new_password)
+    if not pwd_ok:
+        return jsonify({'error': pwd_err}), 400
+
+    prt = PasswordResetToken.query.filter_by(token=token_str, used=False).first()
+    if not prt:
+        return jsonify({'error': 'Token inválido ou já utilizado'}), 400
+    if prt.expires_at < datetime.now(timezone.utc):
+        return jsonify({'error': 'Token expirado. Solicite um novo link.'}), 400
+
+    prt.used = True
+    prt.user.password_hash = generate_password_hash(new_password)
+    db.session.commit()
+    return jsonify({'message': 'Senha redefinida com sucesso. Faça login.'}), 200
+
+
 # ── Frontend ──────────────────────────────────────────────────────────────────
 
 @app.get('/')
@@ -1571,7 +2025,18 @@ def serve_index():
 
 with app.app_context():
     db.create_all()
+    # Warn loudly if running with the default JWT secret
+    if _jwt_secret == _JWT_DEFAULT_SECRET:
+        app.logger.warning(
+            '\n' + '='*70 +
+            '\n  AVISO DE SEGURANÇA: JWT_SECRET não configurado!\n'
+            '  Defina a variável de ambiente JWT_SECRET com um valor seguro\n'
+            '  antes de usar em produção. Exemplo:\n'
+            '    export JWT_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")\n' +
+            '='*70
+        )
     _start_reminder_scheduler()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True, port=5000)
+    debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+    app.run(host='0.0.0.0', debug=debug_mode, port=5000)

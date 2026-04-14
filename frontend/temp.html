@@ -685,7 +685,54 @@
         <div class="field"><label>E-mail</label><input type="email" class="input" id="login-email" placeholder="voce@empresa.com"></div>
         <div class="field"><label>Senha</label><input type="password" class="input" id="login-pass" placeholder="••••••••"></div>
         <button class="btn btn-primary" onclick="doLogin()">Entrar</button>
+        <button class="auth-link" onclick="showScreen('forgot-password')" style="margin-top:8px">Esqueceu a senha?</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ═══ FORGOT PASSWORD ═══ -->
+  <div id="screen-forgot-password" class="screen">
+    <div class="auth-bg">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">◈</div>
+        <div>
+          <div class="auth-logo-text">SpaceHub</div>
+          <div class="auth-logo-sub">RECUPERAÇÃO DE SENHA</div>
+        </div>
+      </div>
+      <h1 class="auth-title">Redefinir senha</h1>
+      <p class="auth-sub">Informe seu e-mail para receber o código</p>
+      <div class="auth-card">
+        <div class="field"><label>E-mail</label><input type="email" class="input" id="forgot-email" placeholder="voce@empresa.com"></div>
+        <button class="btn btn-primary" onclick="doForgotPassword()">Enviar código</button>
+        <button class="auth-link" onclick="showScreen('reset-password')" style="margin-top:8px">Já tenho um código</button>
+      </div>
+      <button class="auth-link" onclick="showScreen('login')">Voltar ao login</button>
+    </div>
+  </div>
+
+  <!-- ═══ RESET PASSWORD ═══ -->
+  <div id="screen-reset-password" class="screen">
+    <div class="auth-bg">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">◈</div>
+        <div>
+          <div class="auth-logo-text">SpaceHub</div>
+          <div class="auth-logo-sub">NOVA SENHA</div>
+        </div>
+      </div>
+      <h1 class="auth-title">Nova senha</h1>
+      <p class="auth-sub">Cole o código recebido e defina sua nova senha</p>
+      <div class="auth-card">
+        <div class="field"><label>Código de redefinição</label><input class="input" id="reset-token" placeholder="Cole o código aqui"></div>
+        <div class="field">
+          <label>Nova senha</label>
+          <input type="password" class="input" id="reset-pass" placeholder="••••••••" oninput="checkPasswordStrength('reset-pass','reset-strength')">
+          <div id="reset-strength" style="margin-top:6px"></div>
+        </div>
+        <button class="btn btn-primary" onclick="doResetPassword()">Redefinir senha</button>
+      </div>
+      <button class="auth-link" onclick="showScreen('login')">Voltar ao login</button>
     </div>
   </div>
 
@@ -704,7 +751,11 @@
       <div class="auth-card">
         <div class="field"><label>Nome completo</label><input class="input" id="setup-name"></div>
         <div class="field"><label>E-mail</label><input type="email" class="input" id="setup-email"></div>
-        <div class="field"><label>Senha (mín. 8 caracteres)</label><input type="password" class="input" id="setup-pass"></div>
+        <div class="field">
+          <label>Senha</label>
+          <input type="password" class="input" id="setup-pass" oninput="checkPasswordStrength('setup-pass','setup-strength')">
+          <div id="setup-strength" style="margin-top:6px"></div>
+        </div>
         <button class="btn btn-primary" onclick="doSetup()">Criar</button>
       </div>
     </div>
@@ -733,7 +784,11 @@
       <div class="auth-card" id="signup-phase-new" style="display:none">
         <div class="field"><label>Nome completo</label><input class="input" id="signup-name"></div>
         <div class="field"><label>Setor</label><input class="input" id="signup-department"></div>
-        <div class="field"><label>Senha (mín. 8 caracteres)</label><input type="password" class="input" id="signup-pass"></div>
+        <div class="field">
+          <label>Senha</label>
+          <input type="password" class="input" id="signup-pass" oninput="checkPasswordStrength('signup-pass','signup-strength')">
+          <div id="signup-strength" style="margin-top:6px"></div>
+        </div>
         <button class="btn btn-primary" onclick="signupRegister()">Criar cadastro</button>
       </div>
 
@@ -785,6 +840,7 @@
           <button class="admin-tab" data-panel="admin-rooms">Salas</button>
           <button class="admin-tab" data-panel="admin-invite">Convite</button>
           <button class="admin-tab" data-panel="admin-settings">Config</button>
+          <button class="admin-tab" data-panel="admin-audit">Auditoria</button>
         </div>
         <div class="admin-panel active" id="admin-users">
           <div class="content-pad" id="admin-users-list"></div>
@@ -801,6 +857,9 @@
         <div class="admin-panel" id="admin-settings">
           <div class="content-pad" id="admin-settings-content"></div>
         </div>
+        <div class="admin-panel" id="admin-audit">
+          <div class="content-pad" id="admin-audit-content"></div>
+        </div>
       </div>
 
       <!-- Tab: Super admin -->
@@ -810,6 +869,7 @@
         <div class="admin-tabs" id="super-tabs">
           <button class="admin-tab active" data-superpanel="super-panel-ests" onclick="switchSuperPanel('super-panel-ests')">Estabelecimentos</button>
           <button class="admin-tab" data-superpanel="super-panel-admins" onclick="switchSuperPanel('super-panel-admins')">Super Admins</button>
+          <button class="admin-tab" data-superpanel="super-panel-sistema" onclick="switchSuperPanel('super-panel-sistema')">E-mail</button>
         </div>
 
         <div class="admin-panel active" id="super-panel-ests">
@@ -824,6 +884,10 @@
             <button class="btn btn-primary" onclick="openSuperAdminForm()">+ Novo super admin</button>
             <div id="super-admins-list"></div>
           </div>
+        </div>
+
+        <div class="admin-panel" id="super-panel-sistema" style="display:none">
+          <div class="content-pad" id="super-sistema-content"></div>
         </div>
       </div>
     </div>
@@ -1510,6 +1574,15 @@ async function cancelBooking(id, btn) {
 // ═══════════════════════════════════════════════════════════════════════
 function loadAdminTab() {
   const container = document.getElementById('tab-admin');
+  // Reset visual state to first tab on every establishment switch
+  container.querySelectorAll('.admin-tab').forEach(x => x.classList.remove('active'));
+  container.querySelectorAll('.admin-panel').forEach(x => x.classList.remove('active'));
+  const firstTab = container.querySelector('.admin-tab');
+  if (firstTab) {
+    firstTab.classList.add('active');
+    const firstPanel = document.getElementById(firstTab.dataset.panel);
+    if (firstPanel) firstPanel.classList.add('active');
+  }
   container.querySelectorAll('.admin-tab').forEach(t => {
     t.onclick = () => {
       container.querySelectorAll('.admin-tab').forEach(x => x.classList.remove('active'));
@@ -1527,6 +1600,7 @@ function loadAdminPanel(panel) {
   if (panel === 'admin-rooms') loadAdminRooms();
   if (panel === 'admin-invite') loadAdminInvite();
   if (panel === 'admin-settings') loadAdminSettings();
+  if (panel === 'admin-audit') loadAuditLog();
 }
 
 // --- Users ---
@@ -1664,24 +1738,35 @@ async function loadAdminInvite() {
       <button class="btn btn-primary" onclick="copyInvite('${escapeHtml(url)}')">Copiar link</button>
       <div style="height:10px"></div>
       <button class="btn btn-outline" onclick="regenInvite()">Gerar novo link</button>
-      <div style="height:10px"></div>
-      <button class="btn btn-danger" onclick="revokeInvite()">Revogar link atual</button>
     `;
   } catch (e) { c.innerHTML = `<div class="empty">${escapeHtml(e.message)}</div>`; }
 }
 async function copyInvite(url) {
-  try { await navigator.clipboard.writeText(url); toast('Link copiado!', 'success'); }
-  catch (e) { toast('Erro ao copiar', 'error'); }
+  if (navigator.clipboard && window.isSecureContext) {
+    try { await navigator.clipboard.writeText(url); toast('Link copiado!', 'success'); return; }
+    catch (e) {}
+  }
+  // Fallback para HTTP / contextos não-seguros
+  const ta = document.createElement('textarea');
+  ta.value = url;
+  ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    toast('Link copiado!', 'success');
+  } catch (e) {
+    toast('Erro ao copiar', 'error');
+  } finally {
+    document.body.removeChild(ta);
+  }
 }
-async function regenInvite() {
-  if (!confirm('O link anterior deixará de funcionar. Continuar?')) return;
-  try { await api('POST', '/admin/invitation/regenerate'); toast('Novo link gerado'); loadAdminInvite(); }
-  catch (e) { toast(e.message, 'error'); }
-}
-async function revokeInvite() {
-  if (!confirm('Revogar o link atual?')) return;
-  try { await api('POST', '/admin/invitation/revoke'); toast('Link revogado'); loadAdminInvite(); }
-  catch (e) { toast(e.message, 'error'); }
+function regenInvite() {
+  showConfirm('O link anterior deixará de funcionar. Continuar?', async () => {
+    try { await api('POST', '/admin/invitation/regenerate'); toast('Novo link gerado'); loadAdminInvite(); }
+    catch (e) { toast(e.message, 'error'); }
+  });
 }
 
 // --- Settings (SMTP + allowed domains) ---
@@ -1691,7 +1776,15 @@ async function loadAdminSettings() {
   try {
     const s = await api('GET', '/settings');
     c.innerHTML = `
-      <div class="section-title">SMTP</div>
+      <div class="section-title">Fuso Horário</div>
+      <div class="field light">
+        <label>Fuso horário do estabelecimento</label>
+        <select class="input light" id="st-timezone" style="background:var(--cream2);color:var(--text-main)">
+          <option value="">Carregando...</option>
+        </select>
+      </div>
+
+      <div class="section-title" style="margin-top:20px">SMTP</div>
       <div class="field light"><label>Servidor</label><input class="input light" id="st-server" value="${escapeHtml(s.mail_server || '')}"></div>
       <div class="field light"><label>Porta</label><input class="input light" id="st-port" value="${escapeHtml(s.mail_port || '587')}"></div>
       <div class="field light"><label>Usuário</label><input class="input light" id="st-user" value="${escapeHtml(s.mail_username || '')}"></div>
@@ -1718,10 +1811,11 @@ async function loadAdminSettings() {
       <p style="font-size:12px;color:var(--text-muted);margin-bottom:18px">⏰ Variáveis exclusivas do lembrete: <code style="background:var(--cream2);padding:2px 6px;border-radius:4px;font-family:'Space Mono',monospace;color:var(--teal-dim)">{{sala}}</code> <code style="background:var(--cream2);padding:2px 6px;border-radius:4px;font-family:'Space Mono',monospace;color:var(--teal-dim)">{{data_reserva}}</code> <code style="background:var(--cream2);padding:2px 6px;border-radius:4px;font-family:'Space Mono',monospace;color:var(--teal-dim)">{{inicio}}</code> <code style="background:var(--cream2);padding:2px 6px;border-radius:4px;font-family:'Space Mono',monospace;color:var(--teal-dim)">{{fim}}</code> <code style="background:var(--cream2);padding:2px 6px;border-radius:4px;font-family:'Space Mono',monospace;color:var(--teal-dim)">{{descricao}}</code></p>
 
       <div style="display:flex;gap:4px;margin-bottom:16px;background:var(--cream2);padding:4px;border-radius:10px">
-        <button class="tpl-tab active" onclick="switchTplTab('reg')"      id="tpl-tab-reg"      style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:var(--white);color:var(--text-main);font-family:'DM Sans',sans-serif;transition:all .2s">📝 Novo Cadastro</button>
-        <button class="tpl-tab"        onclick="switchTplTab('approved')" id="tpl-tab-approved" style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-soft);font-family:'DM Sans',sans-serif;transition:all .2s">✅ Aprovação</button>
-        <button class="tpl-tab"        onclick="switchTplTab('blocked')"  id="tpl-tab-blocked"  style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-soft);font-family:'DM Sans',sans-serif;transition:all .2s">🚫 Bloqueio</button>
-        <button class="tpl-tab"        onclick="switchTplTab('reminder')" id="tpl-tab-reminder" style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-soft);font-family:'DM Sans',sans-serif;transition:all .2s">⏰ Lembrete</button>
+        <button class="tpl-tab active" onclick="switchTplTab('reg')"               id="tpl-tab-reg"               style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:var(--white);color:var(--text-main);font-family:'DM Sans',sans-serif;transition:all .2s">📝 Cadastro</button>
+        <button class="tpl-tab"        onclick="switchTplTab('approved')"          id="tpl-tab-approved"          style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-soft);font-family:'DM Sans',sans-serif;transition:all .2s">✅ Aprovação</button>
+        <button class="tpl-tab"        onclick="switchTplTab('blocked')"           id="tpl-tab-blocked"           style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-soft);font-family:'DM Sans',sans-serif;transition:all .2s">🚫 Bloqueio</button>
+        <button class="tpl-tab"        onclick="switchTplTab('booking_confirmed')" id="tpl-tab-booking_confirmed" style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-soft);font-family:'DM Sans',sans-serif;transition:all .2s">📅 Reserva</button>
+        <button class="tpl-tab"        onclick="switchTplTab('reminder')"          id="tpl-tab-reminder"          style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-soft);font-family:'DM Sans',sans-serif;transition:all .2s">⏰ Lembrete</button>
       </div>
 
       <div id="tpl-panel-reg">
@@ -1736,6 +1830,10 @@ async function loadAdminSettings() {
         <div class="form-group" style="margin-bottom:12px"><label>Assunto</label><input id="tpl-blocked-subject" class="input light" type="text" placeholder="Assunto do e-mail"></div>
         <div class="form-group" style="margin:0"><label>Corpo (HTML)</label><textarea id="tpl-blocked-body" class="input light" rows="8" style="height:auto;padding:12px;resize:vertical;line-height:1.5;font-family:'Space Mono',monospace;font-size:12px"></textarea></div>
       </div>
+      <div id="tpl-panel-booking_confirmed" style="display:none">
+        <div class="form-group" style="margin-bottom:12px"><label>Assunto</label><input id="tpl-booking_confirmed-subject" class="input light" type="text" placeholder="Assunto do e-mail"></div>
+        <div class="form-group" style="margin:0"><label>Corpo (HTML)</label><textarea id="tpl-booking_confirmed-body" class="input light" rows="8" style="height:auto;padding:12px;resize:vertical;line-height:1.5;font-family:'Space Mono',monospace;font-size:12px"></textarea></div>
+      </div>
       <div id="tpl-panel-reminder" style="display:none">
         <div class="form-group" style="margin-bottom:12px"><label>Assunto</label><input id="tpl-reminder-subject" class="input light" type="text" placeholder="Assunto do e-mail"></div>
         <div class="form-group" style="margin:0"><label>Corpo (HTML)</label><textarea id="tpl-reminder-body" class="input light" rows="8" style="height:auto;padding:12px;resize:vertical;line-height:1.5;font-family:'Space Mono',monospace;font-size:12px"></textarea></div>
@@ -1747,8 +1845,96 @@ async function loadAdminSettings() {
       </div>
     `;
     loadEmailTemplates();
+    loadTimezoneSelector('st-timezone', s.timezone || 'America/Sao_Paulo');
   } catch (e) { c.innerHTML = `<div class="empty">${escapeHtml(e.message)}</div>`; }
 }
+
+async function loadTimezoneSelector(selectId, currentTz) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  try {
+    const tzList = await api('GET', '/timezones');
+    sel.innerHTML = tzList
+      .sort()
+      .map(tz => `<option value="${escapeHtml(tz)}"${tz === currentTz ? ' selected' : ''}>${escapeHtml(tz)}</option>`)
+      .join('');
+  } catch (e) {
+    sel.innerHTML = `<option value="${escapeHtml(currentTz)}" selected>${escapeHtml(currentTz)}</option>`;
+  }
+}
+// ── Password strength indicator ──────────────────────────────────────────────
+function checkPasswordStrength(inputId, targetId) {
+  const val = document.getElementById(inputId).value;
+  const el  = document.getElementById(targetId);
+  if (!el) return;
+  if (!val) { el.innerHTML = ''; return; }
+  const checks = [
+    { ok: val.length >= 8,                  label: '8+ caracteres' },
+    { ok: /[A-Z]/.test(val),                label: '1 maiúscula'   },
+    { ok: /[a-z]/.test(val),                label: '1 minúscula'   },
+    { ok: /\d/.test(val),                   label: '1 número'      },
+    { ok: /[!@#$%^&*()\-_=+\[\]{}|;:,.<>?/\\]/.test(val), label: '1 especial' },
+  ];
+  const allOk = checks.every(c => c.ok);
+  const color = allOk ? 'var(--green)' : 'var(--amber)';
+  el.innerHTML = checks.map(c =>
+    `<span style="font-size:11px;margin-right:8px;color:${c.ok ? 'var(--green)' : 'var(--text-muted)'}">${c.ok ? '✓' : '○'} ${c.label}</span>`
+  ).join('');
+}
+
+// ── Forgot / Reset password ───────────────────────────────────────────────────
+async function doForgotPassword() {
+  const email = document.getElementById('forgot-email').value.trim();
+  if (!email) return toast('Informe seu e-mail', 'error');
+  try {
+    const r = await api('POST', '/auth/forgot-password', { email });
+    toast(r.message || 'Instruções enviadas!', 'success');
+    showScreen('reset-password');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function doResetPassword() {
+  const token    = document.getElementById('reset-token').value.trim();
+  const password = document.getElementById('reset-pass').value;
+  if (!token || !password) return toast('Preencha todos os campos', 'error');
+  try {
+    const r = await api('POST', '/auth/reset-password', { token, password });
+    toast(r.message || 'Senha redefinida!', 'success');
+    showScreen('login');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Audit log ─────────────────────────────────────────────────────────────────
+async function loadAuditLog() {
+  const c = document.getElementById('admin-audit-content');
+  c.innerHTML = '<div class="empty">Carregando...</div>';
+  try {
+    const entries = await api('GET', '/admin/audit-log');
+    if (!entries.length) { c.innerHTML = '<div class="empty">Nenhum registro encontrado.</div>'; return; }
+    const ACTION_LABELS = {
+      'user.approved':     '✅ Aprovação',
+      'user.blocked':      '🚫 Bloqueio',
+      'user.pending':      '⏳ Pendente',
+      'user.role_changed': '🔑 Papel alterado',
+      'user.removed':      '🗑 Removido',
+      'room.created':      '🏠 Sala criada',
+      'room.deleted':      '🗑 Sala removida',
+    };
+    c.innerHTML = entries.map(e => {
+      const label = ACTION_LABELS[e.action] || e.action;
+      const ts    = new Date(e.created_at).toLocaleString('pt-BR');
+      return `<div style="padding:12px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <span style="font-weight:600;font-size:14px">${escapeHtml(label)}</span>
+          <span style="font-size:11px;color:var(--text-muted)">${escapeHtml(ts)}</span>
+        </div>
+        <div style="font-size:13px;color:var(--text-soft);margin-top:2px">${escapeHtml(e.target || '')}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:1px">por ${escapeHtml(e.actor_name || 'system')}</div>
+      </div>`;
+    }).join('');
+  } catch (e) { c.innerHTML = `<div class="empty">${escapeHtml(e.message)}</div>`; }
+}
+
 function domainsToText(raw) {
   try {
     const arr = JSON.parse(raw || '[]');
@@ -1761,7 +1947,9 @@ function textToDomains(text) {
 }
 
 async function saveSettings() {
+  const tzSel = document.getElementById('st-timezone');
   const payload = {
+    timezone: tzSel ? tzSel.value : 'America/Sao_Paulo',
     mail_server: document.getElementById('st-server').value.trim(),
     mail_port: document.getElementById('st-port').value.trim(),
     mail_username: document.getElementById('st-user').value.trim(),
@@ -1782,7 +1970,7 @@ let currentTplTab = 'reg';
 
 function switchTplTab(name) {
   currentTplTab = name;
-  ['reg','approved','blocked','reminder'].forEach(t => {
+  ['reg','approved','blocked','booking_confirmed','reminder'].forEach(t => {
     const panel = document.getElementById('tpl-panel-' + t);
     const tab   = document.getElementById('tpl-tab-' + t);
     const active = t === name;
@@ -1795,14 +1983,16 @@ function switchTplTab(name) {
 async function loadEmailTemplates() {
   try {
     const data = await api('GET', '/admin/email-templates');
-    document.getElementById('tpl-reg-subject').value      = data.email_reg_subject      || '';
-    document.getElementById('tpl-reg-body').value         = data.email_reg_body         || '';
-    document.getElementById('tpl-approved-subject').value = data.email_approved_subject || '';
-    document.getElementById('tpl-approved-body').value    = data.email_approved_body    || '';
-    document.getElementById('tpl-blocked-subject').value  = data.email_blocked_subject  || '';
-    document.getElementById('tpl-blocked-body').value     = data.email_blocked_body     || '';
-    document.getElementById('tpl-reminder-subject').value = data.email_reminder_subject || '';
-    document.getElementById('tpl-reminder-body').value    = data.email_reminder_body    || '';
+    document.getElementById('tpl-reg-subject').value               = data.email_reg_subject               || '';
+    document.getElementById('tpl-reg-body').value                  = data.email_reg_body                  || '';
+    document.getElementById('tpl-approved-subject').value          = data.email_approved_subject          || '';
+    document.getElementById('tpl-approved-body').value             = data.email_approved_body             || '';
+    document.getElementById('tpl-blocked-subject').value           = data.email_blocked_subject           || '';
+    document.getElementById('tpl-blocked-body').value              = data.email_blocked_body              || '';
+    document.getElementById('tpl-booking_confirmed-subject').value = data.email_booking_confirmed_subject || '';
+    document.getElementById('tpl-booking_confirmed-body').value    = data.email_booking_confirmed_body    || '';
+    document.getElementById('tpl-reminder-subject').value          = data.email_reminder_subject          || '';
+    document.getElementById('tpl-reminder-body').value             = data.email_reminder_body             || '';
   } catch(e) { console.error('Erro ao carregar templates', e); }
 }
 
@@ -1811,14 +2001,16 @@ async function saveEmailTemplates() {
   btn.disabled = true; btn.textContent = '...';
   try {
     await api('POST', '/admin/email-templates', {
-      email_reg_subject:      document.getElementById('tpl-reg-subject').value,
-      email_reg_body:         document.getElementById('tpl-reg-body').value,
-      email_approved_subject: document.getElementById('tpl-approved-subject').value,
-      email_approved_body:    document.getElementById('tpl-approved-body').value,
-      email_blocked_subject:  document.getElementById('tpl-blocked-subject').value,
-      email_blocked_body:     document.getElementById('tpl-blocked-body').value,
-      email_reminder_subject: document.getElementById('tpl-reminder-subject').value,
-      email_reminder_body:    document.getElementById('tpl-reminder-body').value,
+      email_reg_subject:               document.getElementById('tpl-reg-subject').value,
+      email_reg_body:                  document.getElementById('tpl-reg-body').value,
+      email_approved_subject:          document.getElementById('tpl-approved-subject').value,
+      email_approved_body:             document.getElementById('tpl-approved-body').value,
+      email_blocked_subject:           document.getElementById('tpl-blocked-subject').value,
+      email_blocked_body:              document.getElementById('tpl-blocked-body').value,
+      email_booking_confirmed_subject: document.getElementById('tpl-booking_confirmed-subject').value,
+      email_booking_confirmed_body:    document.getElementById('tpl-booking_confirmed-body').value,
+      email_reminder_subject:          document.getElementById('tpl-reminder-subject').value,
+      email_reminder_body:             document.getElementById('tpl-reminder-body').value,
     });
     toast('Templates salvos!', 'success');
   } catch(e) { toast(e.message, 'error'); }
@@ -1842,12 +2034,56 @@ function resetEmailTemplates() {
 //  SUPER ADMIN TAB
 // ═══════════════════════════════════════════════════════════════════════
 function switchSuperPanel(panelId) {
-  document.querySelectorAll('#super-panel-ests, #super-panel-admins').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('#super-panel-ests, #super-panel-admins, #super-panel-sistema').forEach(p => p.style.display = 'none');
   document.getElementById(panelId).style.display = 'block';
   document.querySelectorAll('#super-tabs .admin-tab').forEach(b =>
     b.classList.toggle('active', b.dataset.superpanel === panelId)
   );
   if (panelId === 'super-panel-admins') loadSuperAdmins();
+  if (panelId === 'super-panel-sistema') loadSuperSistema();
+}
+
+async function loadSuperSistema() {
+  const c = document.getElementById('super-sistema-content');
+  c.innerHTML = '<div class="empty">Carregando...</div>';
+  try {
+    const s = await api('GET', '/super/smtp', null, { estContext: false });
+    c.innerHTML = `
+      <div class="section-title">Configurações de E-mail</div>
+      <p class="small-muted" style="margin-bottom:16px">Servidor SMTP do sistema. Usado para redefinição de senha de super administradores e notificações globais.</p>
+      <div class="field light"><label>Servidor SMTP</label><input class="input light" id="gs-server" value="${escapeHtml(s.mail_server || '')}"></div>
+      <div class="field light"><label>Porta</label><input class="input light" type="number" id="gs-port" value="${escapeHtml(s.mail_port || '587')}"></div>
+      <div class="field light"><label>Usuário</label><input class="input light" id="gs-user" value="${escapeHtml(s.mail_username || '')}"></div>
+      <div class="field light"><label>Senha ${s.mail_password_set ? '(preenchida)' : '(vazia)'}</label><input type="password" class="input light" id="gs-pass" placeholder="${s.mail_password_set ? 'Deixe em branco para manter' : ''}"></div>
+      <div class="field light"><label>Nome do remetente</label><input class="input light" id="gs-from" value="${escapeHtml(s.mail_from_name || '')}"></div>
+      <div style="display:flex;gap:12px;margin-top:8px">
+        <button class="btn btn-primary" style="flex:1" onclick="saveSuperSistema()">Salvar</button>
+        <button class="btn btn-outline" style="flex:1" onclick="testSuperSistema()">Enviar teste</button>
+      </div>
+    `;
+  } catch (e) { c.innerHTML = `<div class="empty">${escapeHtml(e.message)}</div>`; }
+}
+
+async function saveSuperSistema() {
+  const payload = {
+    mail_server:    document.getElementById('gs-server').value.trim(),
+    mail_port:      document.getElementById('gs-port').value.trim(),
+    mail_username:  document.getElementById('gs-user').value.trim(),
+    mail_password:  document.getElementById('gs-pass').value,
+    mail_from_name: document.getElementById('gs-from').value.trim(),
+  };
+  try {
+    await api('POST', '/super/smtp', payload, { estContext: false });
+    toast('Configurações salvas', 'success');
+    loadSuperSistema();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function testSuperSistema() {
+  try {
+    const r = await api('POST', '/super/smtp/test-email', null, { estContext: false });
+    toast(r.message || 'Enviado', 'success');
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 async function loadSuperAdmins() {
@@ -2012,22 +2248,24 @@ async function saveEst(id) {
     closeModal(); toast('Salvo'); loadSuperTab();
   } catch (e) { toast(e.message, 'error'); }
 }
-async function toggleEst(id, status) {
+function toggleEst(id, status) {
   const msg = status === 'inactive'
     ? 'Desativar este estabelecimento? Todas as reservas futuras serão canceladas.'
     : 'Reativar este estabelecimento?';
-  if (!confirm(msg)) return;
-  try {
-    await api('PATCH', '/super/establishments/' + id, { status }, { estContext: false });
-    toast('Atualizado'); loadSuperTab();
-  } catch (e) { toast(e.message, 'error'); }
+  showConfirm(msg, async () => {
+    try {
+      await api('PATCH', '/super/establishments/' + id, { status }, { estContext: false });
+      toast('Atualizado'); loadSuperTab();
+    } catch (e) { toast(e.message, 'error'); }
+  });
 }
-async function deleteEst(id) {
-  if (!confirm('EXCLUIR permanentemente este estabelecimento e todos os seus dados?')) return;
-  try {
-    await api('DELETE', '/super/establishments/' + id, null, { estContext: false });
-    toast('Removido'); loadSuperTab();
-  } catch (e) { toast(e.message, 'error'); }
+function deleteEst(id) {
+  showConfirm('EXCLUIR permanentemente este estabelecimento e todos os seus dados?', async () => {
+    try {
+      await api('DELETE', '/super/establishments/' + id, null, { estContext: false });
+      toast('Removido'); loadSuperTab();
+    } catch (e) { toast(e.message, 'error'); }
+  });
 }
 </script>
 </body>
