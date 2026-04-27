@@ -11,6 +11,15 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import uuid, json, os, re, threading, secrets, smtplib, ssl
 
+# Load environment variables from .env file (if present).
+# This must run before any os.environ.get(...) calls below.
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # python-dotenv not installed — fall back to system environment variables only.
+    pass
+
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
     APSCHEDULER_AVAILABLE = True
@@ -32,8 +41,23 @@ app = Flask(__name__)
 _cors_origins = os.environ.get('CORS_ORIGINS', '*')
 CORS(app, origins=_cors_origins, expose_headers=["X-Establishment-Id"])
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///spacehub.db'
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'connect_args': {'check_same_thread': False}}
+# PostgreSQL configuration.
+# Set DATABASE_URL to override (e.g. postgresql+psycopg2://user:pass@host:5432/dbname).
+# The default below assumes a local postgres instance with database `spacehub`.
+_default_db_url = 'postgresql+psycopg2://postgres:postgres@localhost:5432/spacehub'
+_db_url = os.environ.get('DATABASE_URL', _default_db_url)
+
+# Heroku-style URLs sometimes start with `postgres://` — SQLAlchemy 2.x requires `postgresql://`.
+if _db_url.startswith('postgres://'):
+    _db_url = _db_url.replace('postgres://', 'postgresql://', 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = _db_url
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,   # validates connections before use (drops stale ones)
+    'pool_recycle': 1800,    # recycle connections every 30 min
+    'pool_size': 10,
+    'max_overflow': 20,
+}
 
 _jwt_secret = os.environ.get('JWT_SECRET', _JWT_DEFAULT_SECRET)
 app.config['JWT_SECRET_KEY'] = _jwt_secret

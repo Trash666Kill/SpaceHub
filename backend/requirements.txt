@@ -5,3 +5,5 @@ flask-jwt-extended==4.6.0
 werkzeug==3.0.3
 flask-mail==0.10.0
 apscheduler==3.10.4
+psycopg2-binary==2.9.9
+python-dotenv==1.0.1
